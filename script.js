@@ -6643,17 +6643,17 @@ async function _submitToMailBlue(name, email, score) {
   } catch (_) { /* silent — no-cors fetch rejects on network error */ }
 
   // Secondary: our own backend (best-effort, ignores failure)
-  try {
-    await fetch('/api/ratrace-lead', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        email, playerName: name, language: typeof _lang !== 'undefined' ? _lang : 'nl',
-        gameMode: 'solo', resultType: 'lead',
-        passiveIncome: score, ...stats,
-      }),
-    });
-  } catch (_) { /* silent */ }
+  // try {
+//   await fetch('/api/ratrace-lead', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({
+//       email, playerName: name, language: typeof _lang !== 'undefined' ? _lang : 'nl',
+//       gameMode: 'solo', resultType: 'lead',
+//       passiveIncome: score, ...stats,
+//     }),
+//   });
+// } catch (_) { /* silent */ }
 
   // If this session came from a referral, increment the referrer's count
   // (tracked locally; a real backend would do server-side attribution)
