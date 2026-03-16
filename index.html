@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="description" content="CashFlow Academy — Build passive income, escape the Rat Race. A financial education game by FXminds.">
+  <meta name="theme-color" content="#0a0f16">
+  <meta property="og:title"       content="CashFlow Academy — Financial Freedom Game">
+  <meta property="og:description" content="Build passive income until it exceeds your expenses. Can you escape the Rat Race?">
+  <meta property="og:type"        content="website">
+  <title>CashFlow Academy — Financial Freedom Game</title>
+  <link rel="stylesheet" href="style.css">
+  <style>body{position:relative}</style>
+</head>
+<body>
+  <!-- ══ INTRO GATE ════════════════════════════════════════════════════════════ -->
+  <div id="intro-gate">
+    <div class="ig-bg-glow"></div>
+    <div class="ig-card">
+      <div class="ig-brand">
+        <span class="ig-brand-dot"></span>
+        FXminds · Cashflow Simulator
+      </div>
+      <div class="ig-headline">
+        Kun jij ontsnappen<br>uit de <span class="ig-hl">Rat Race?</span>
+      </div>
+      <p class="ig-desc">Speel het Cashflow spel en ontdek hoe succesvolle investeerders denken.</p>
+      <ul class="ig-bullets">
+        <li class="ig-bullet"><span class="ig-bullet-icon">📈</span>Leer hoe passief inkomen werkt</li>
+        <li class="ig-bullet"><span class="ig-bullet-icon">🏠</span>Bouw je eigen investeringsportfolio</li>
+        <li class="ig-bullet"><span class="ig-bullet-icon">🚀</span>Ontsnap uit de rat race</li>
+      </ul>
+      <div class="ig-social-proof">
+        <span class="ig-sp-dots">
+          <span class="ig-sp-dot" style="background:#f59e0b"></span>
+          <span class="ig-sp-dot" style="background:#3b82f6"></span>
+          <span class="ig-sp-dot" style="background:#10b981"></span>
+          <span class="ig-sp-dot" style="background:#f43f5e"></span>
+        </span>
+        <span class="ig-sp-text">Al meer dan 1.000 mensen speelden dit spel</span>
+      </div>
+      <button class="ig-cta" id="ig-cta-btn">
+        Speel het spel <span class="ig-cta-arrow">→</span>
+      </button>
+      <p class="ig-footnote">Gratis · Geen download · 5 minuten</p>
+    </div>
+  </div>
+
+  <!-- ══ EMAIL GATE ══════════════════════════════════════════════════════════════ -->
+  <div id="email-gate" class="hidden">
+    <div class="eg-card">
+      <button class="eg-back" id="eg-back-btn" aria-label="Terug">←</button>
+      <div class="eg-brand">FXminds · Cashflow Simulator</div>
+
+      <!-- Step indicator -->
+      <div class="eg-steps">
+        <div class="eg-step eg-step-done">1</div>
+        <div class="eg-step-line"></div>
+        <div class="eg-step eg-step-active">2</div>
+        <div class="eg-step-line eg-line-dim"></div>
+        <div class="eg-step eg-step-dim">3</div>
+      </div>
+
+      <h2 class="eg-title">Bijna klaar —<br>bewaar je voortgang</h2>
+      <p class="eg-sub">Vul je gegevens in zodat we je voortgang kunnen bewaren. Je ontvangt ook gratis inzichten over investeren.</p>
+
+      <!-- Form -->
+      <div id="eg-form-wrap">
+        <div class="eg-field-group">
+          <div class="eg-field">
+            <label class="eg-label" for="eg-name">Voornaam <span class="eg-req">*</span></label>
+            <input class="eg-input" id="eg-name" type="text" placeholder="Jouw voornaam"
+                   autocomplete="given-name" maxlength="60">
+          </div>
+          <div class="eg-field">
+            <label class="eg-label" for="eg-email">E-mailadres <span class="eg-req">*</span></label>
+            <input class="eg-input" id="eg-email" type="email" placeholder="jouw@email.nl"
+                   autocomplete="email" maxlength="120">
+          </div>
+        </div>
+        <label class="eg-consent">
+          <input type="checkbox" id="eg-consent" class="eg-consent-check">
+          <span class="eg-consent-text">Ik ontvang graag inzichten over investeren van FXminds. Ik kan mij altijd uitschrijven.</span>
+        </label>
+        <div class="eg-err" id="eg-err" style="display:none"></div>
+        <button class="eg-submit" id="eg-submit-btn">
+          <span id="eg-submit-label">▶ Begin het spel</span>
+        </button>
+        <button class="eg-skip" id="eg-skip-btn">Overslaan — spelen zonder score op te slaan</button>
+      </div>
+
+      <!-- Success micro-state (shown briefly before advancing) -->
+      <div id="eg-success-wrap" style="display:none" class="eg-success">
+        <div class="eg-success-icon">✅</div>
+        <div class="eg-success-title">Gegevens opgeslagen!</div>
+        <div class="eg-success-sub">Je voortgang wordt automatisch bewaard. Veel plezier!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ONBOARDING ═══════════════════════════════════════════════════════════ -->
+  <div id="onboard-screen" class="hidden">
+    <div class="ob-card">
+      <button class="ob-to-mode" id="ob-btn-to-mode" data-i18n="ob.btn.to.mode">← Modus</button>
+      <div class="ob-brand" data-i18n="brand.simulator">FXminds · Financiële Simulator</div>
+      <h1 class="ob-title">Waar sta jij,<br>echt?</h1>
+      <p class="ob-sub" data-i18n="ob.sub">60 seconden. Geen opsmuk. Dit is jouw financiële realitycheck voordat de simulatie begint.</p>
+      <div class="ob-progress">
+        <div class="ob-dot active" id="ob-dot-0"></div><div class="ob-dot" id="ob-dot-1"></div>
+        <div class="ob-dot" id="ob-dot-2"></div><div class="ob-dot" id="ob-dot-3"></div>
+        <div class="ob-dot" id="ob-dot-4"></div><div class="ob-dot" id="ob-dot-5"></div>
+      </div>
+      <div class="ob-step ob-active" id="ob-step-0">
+        <div class="ob-q" data-i18n="ob.q.income">Wat levert jouw baan je netto per maand op?</div>
+        <div class="ob-opts" data-key="income">
+          <button class="ob-opt" data-val="under2k" data-i18n="ob.income.under2k">Onder €2.000</button>
+          <button class="ob-opt" data-val="2k4k" data-i18n="ob.income.2k4k">€2.000 – €4.000</button>
+          <button class="ob-opt" data-val="4k7k" data-i18n="ob.income.4k7k">€4.000 – €7.000</button>
+          <button class="ob-opt" data-val="over7k" data-i18n="ob.income.over7k">Boven €7.000</button>
+        </div>
+      </div>
+      <div class="ob-step" id="ob-step-1">
+        <div class="ob-q" data-i18n="ob.q.expenses">Hoeveel van dat geld verdwijnt elke maand?</div>
+        <div class="ob-opts" data-key="expenses">
+          <button class="ob-opt" data-val="under1500" data-i18n="ob.exp.under1500">Onder €1.500</button>
+          <button class="ob-opt" data-val="1500to3k" data-i18n="ob.exp.1500to3k">€1.500 – €3.000</button>
+          <button class="ob-opt" data-val="3k5k" data-i18n="ob.exp.3k5k">€3.000 – €5.000</button>
+          <button class="ob-opt" data-val="over5k" data-i18n="ob.exp.over5k">Boven €5.000</button>
+        </div>
+      </div>
+      <div class="ob-step" id="ob-step-2">
+        <div class="ob-q" data-i18n="ob.q.invests">Werkt jouw geld voor jou — of staat het stil?</div>
+        <div class="ob-opts" data-key="invests">
+          <button class="ob-opt" data-val="no" data-i18n="ob.inv.no">Nee — nog niet</button>
+          <button class="ob-opt" data-val="sometimes" data-i18n="ob.inv.sometimes">Soms</button>
+          <button class="ob-opt" data-val="yes" data-i18n="ob.inv.yes">Ja, regelmatig</button>
+        </div>
+      </div>
+      <div class="ob-step" id="ob-step-3">
+        <div class="ob-q" data-i18n="ob.q.debt">Hoe ziet jouw schuldsituatie er op dit moment uit?</div>
+        <div class="ob-opts" data-key="debt">
+          <button class="ob-opt" data-val="none" data-i18n="ob.debt.none">Geen schuld — schone lei</button>
+          <button class="ob-opt" data-val="small" data-i18n="ob.debt.small">Kleine schuld (creditcard / onder €5k)</button>
+          <button class="ob-opt" data-val="moderate" data-i18n="ob.debt.moderate">Gemiddelde schuld (€5k – €25k)</button>
+          <button class="ob-opt" data-val="heavy" data-i18n="ob.debt.heavy">Zware schuld (studielening / boven €25k)</button>
+        </div>
+      </div>
+      <div class="ob-step" id="ob-step-4">
+        <div class="ob-q" data-i18n="ob.q.goal">Wat probeer je eigenlijk op te bouwen?</div>
+        <div class="ob-opts" data-key="goal">
+          <button class="ob-opt" data-val="freedom" data-i18n="ob.goal.freedom">Financiële vrijheid</button>
+          <button class="ob-opt" data-val="extra" data-i18n="ob.goal.extra">Extra inkomen</button>
+          <button class="ob-opt" data-val="invest" data-i18n="ob.goal.invest">Vermogen opbouwen</button>
+          <button class="ob-opt" data-val="trading" data-i18n="ob.goal.trading">Leren traden</button>
+        </div>
+      </div>
+      <div class="ob-step" id="ob-step-5">
+        <div class="ob-q" data-i18n="ob.q.freedom">Eerlijk — hoe financieel vrij ben je nu?</div>
+        <div class="ob-range-wrap">
+          <div class="ob-range-val" id="ob-freedom-val">5</div>
+          <input type="range" class="ob-range" id="ob-freedom" min="1" max="10" value="5">
+          <div class="ob-range-labels"><span data-i18n="ob.range.low">Helemaal niet</span><span data-i18n="ob.range.high">Volledig vrij</span></div>
+        </div>
+      </div>
+      <div class="ob-nav">
+        <button class="ob-back" id="ob-btn-back" disabled data-i18n="ob.btn.back">← Terug</button>
+        <button class="ob-next" id="ob-btn-next" data-i18n="ob.btn.next">Volgende →</button>
+      </div>
+    </div>
+  </div>
+  <!-- ══ REFLECT SCREEN ════════════════════════════════════════════════════════ -->
+  <div id="reflect-screen" class="hidden">
+    <div class="ob-card" style="max-width:480px">
+      <button class="ob-to-mode" id="rf-btn-to-mode" data-i18n="ob.btn.to.mode">← Modus</button>
+      <div class="ob-brand" data-i18n="brand.awareness">FXminds · Financieel Bewustzijn</div>
+      <h1 class="ob-title">Dit is jouw<br>startpunt</h1>
+      <div id="reflect-scores" style="margin-bottom:20px"></div>
+      <div class="ob-reflection" data-i18n="reflect.body" data-i18n-html="1"><strong>Dit gat is wat de meeste mensen nooit dichten.</strong><br><br>Inkomen dat afhankelijk is van aanwezig zijn. Uitgaven die elk jaar groeien. Geen bezittingen die voor je werken terwijl je slaapt.<br><br>Dat is geen persoonlijk falen — het systeem werkt precies zoals het ontworpen is. De Ratrace bestaat echt, en de meeste mensen vinden de uitweg nooit.<br><br><strong>Deze simulatie laat je zien hoe je eruit komt.</strong></div>
+      <button class="ob-next" id="ob-btn-continue" style="width:100%" data-i18n="reflect.cta">▶ Stap de simulatie in</button>
+    </div>
+  </div>
+  <!-- ══ STARTING POINT SCREEN ═══════════════════════════════════════════════ -->
+  <div id="sp-screen" class="hidden">
+    <div class="sp-card">
+      <button class="ob-to-mode" id="sp-btn-to-mode" data-i18n="sp.btn.to.mode">← Modus kiezen</button>
+      <div class="sp-brand" data-i18n="brand.cashflow">FXminds · Cashflow Simulator</div>
+      <h2 class="sp-title" data-i18n="sp.title">Jouw startpunt</h2>
+      <p class="sp-sub" data-i18n="sp.sub">Hoe wil je de simulatie ingaan? Jouw keuze bepaalt alles vanaf hier.</p>
+
+      <!-- Mode selector -->
+      <div class="sp-options">
+        <button class="sp-opt" id="sp-opt-situation">
+          <div class="sp-opt-badge" data-i18n="sp.sit.badge">Gepersonaliseerd</div>
+          <div class="sp-opt-icon">🪞</div>
+          <div class="sp-opt-label" data-i18n="sp.sit.label">Start met mijn situatie</div>
+          <div class="sp-opt-desc" data-i18n="sp.sit.desc">Jouw echte inkomen, uitgaven en gewoontes — geladen in de simulatie.</div>
+        </button>
+        <button class="sp-opt" id="sp-opt-character">
+          <div class="sp-opt-icon">🎭</div>
+          <div class="sp-opt-label" data-i18n="sp.char.label">Kies een karakter</div>
+          <div class="sp-opt-desc" data-i18n="sp.char.desc">Kies een voorinstelling — klassieke beroepen of nieuwe FXminds-archetypen.</div>
+        </button>
+      </div>
+
+      <!-- Panel A: My Situation -->
+      <div id="sp-panel-situation" class="hidden">
+        <!-- Diagnosis rendered by JS into this container -->
+        <div id="sp-diagnosis"></div>
+        <div class="sp-name-row">
+          <label for="sp-name-sit" data-i18n="sp.name.label">Jouw naam</label>
+          <input type="text" id="sp-name-sit" placeholder="Voer jouw naam in" maxlength="24" value="Alex" data-i18n-ph="sp.name.ph">
+        </div>
+        <div class="sp-nav">
+          <button class="sp-back" id="sp-sit-back" data-i18n="sp.btn.back">← Terug</button>
+          <button class="sp-start" id="sp-sit-start" data-i18n="sp.sit.start">▶ Start mijn simulatie</button>
+        </div>
+      </div>
+
+      <!-- Panel B: Choose Character -->
+      <div id="sp-panel-character" class="hidden">
+        <div class="sp-char-grid" id="sp-char-grid"></div>
+        <div class="sp-name-row">
+          <label for="sp-name-char" data-i18n="sp.name.label">Jouw naam</label>
+          <input type="text" id="sp-name-char" placeholder="Voer jouw naam in" maxlength="24" value="Alex" data-i18n-ph="sp.name.ph">
+        </div>
+        <div class="sp-nav">
+          <button class="sp-back" id="sp-char-back" data-i18n="sp.btn.back">← Terug</button>
+          <button class="sp-start" id="sp-char-start" disabled data-i18n="sp.char.start">▶ Speel dit karakter</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- ══ SETUP SCREEN ═══════════════════════════════════════════════════════ -->
+  <!-- ══ MODE SELECT SCREEN ════════════════════════════════════════════════ -->
+  <div id="mode-select-screen" class="hidden">
+    <div class="ms-card">
+      <div class="ms-logo">FXminds · Cashflow Simulator</div>
+      <div class="ms-title" data-i18n="mode.title">Kies jouw spelmodus</div>
+      <div class="ms-sub" data-i18n="mode.sub">Solo of samen spelen — tot 6 spelers op één apparaat.</div>
+      <!-- ── Continue-game banner (shown only when save exists) ── -->
+      <div id="ms-continue-banner" class="ms-continue-banner hidden">
+        <div class="ms-save-icon" id="ms-save-tier-icon">📈</div>
+        <div class="ms-save-body">
+          <div class="ms-save-name" id="ms-save-name">Alex</div>
+          <div class="ms-save-meta" id="ms-save-meta">Level 3 · 12 beurten · €800/mnd passief</div>
+          <div class="ms-save-tier-badge" id="ms-save-tier-badge">Ratrace</div>
+        </div>
+        <button class="ms-save-resume" id="ms-continue-btn">▶ Doorgaan</button>
+      </div>
+
+      <div class="ms-modes">
+        <button class="ms-mode" id="ms-single">
+          <span class="ms-mode-icon">👤</span>
+          <span class="ms-mode-body">
+            <div class="ms-mode-name">Nieuw spel</div>
+            <div class="ms-mode-desc">Start opnieuw — jouw situatie, jouw keuzes, jouw uitweg.</div>
+          </span>
+        </button>
+        <button class="ms-mode" id="ms-load-email">
+          <span class="ms-mode-icon">📧</span>
+          <span class="ms-mode-body">
+            <div class="ms-mode-name">Laad spel met e-mail</div>
+            <div class="ms-mode-desc">Zet je voortgang voort op een ander apparaat.</div>
+          </span>
+        </button>
+        <button class="ms-mode" id="ms-local">
+          <span class="ms-mode-icon">👥</span>
+          <span class="ms-mode-body">
+            <div class="ms-mode-name" data-i18n="mode.local.name">Lokaal multiplayer</div>
+            <div class="ms-mode-desc" data-i18n="mode.local.desc">2–6 spelers, geef-en-speel. Elke speler richt zijn eigen situatie in.</div>
+          </span>
+        </button>
+        <button class="ms-mode" disabled>
+          <span class="ms-mode-icon">🌐</span>
+          <span class="ms-mode-body">
+            <div class="ms-mode-name" data-i18n="mode.online.name">Online multiplayer</div>
+            <div class="ms-mode-desc" data-i18n="mode.online.desc">Speel tegen vrienden in realtime, overal ter wereld.</div>
+          </span>
+          <span class="ms-mode-soon" data-i18n="mode.online.soon">Binnenkort</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MP SETUP SCREEN ═══════════════════════════════════════════════════ -->
+  <div id="mp-setup-screen" class="hidden">
+    <div class="mp-setup-wrap">
+      <div class="mp-setup-hdr">
+        <button class="mp-setup-back" id="mp-back-btn" data-i18n="mp.setup.back">← Terug</button>
+        <div class="mp-setup-title" data-i18n="mp.setup.title">Lokaal multiplayer instellen</div>
+      </div>
+      <div class="mp-player-count">
+        <span class="mp-count-lbl" data-i18n="mp.count.lbl">Aantal spelers</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="mp-count-btn" id="mp-count-minus">−</button>
+          <span class="mp-count-val" id="mp-count-val">2</span>
+          <button class="mp-count-btn" id="mp-count-plus">+</button>
+        </div>
+      </div>
+      <div class="mp-players-list" id="mp-players-list"></div>
+      <button class="mp-start-btn" id="mp-start-btn" data-i18n="mp.start.btn">▶ Door naar spelerinstellingen →</button>
+    </div>
+  </div>
+
+  <!-- ══ PER-PLAYER MP SETUP SCREEN ═══════════════════════════════════════ -->
+  <div id="mp-player-setup-screen" class="hidden">
+    <div class="mpps-wrap">
+      <div class="mpps-hdr" id="mpps-hdr"></div>
+
+      <!-- Panel 1: choose mode -->
+      <div id="mpps-panel-mode">
+        <div class="mpps-mode-lbl" data-i18n="mpps.mode.lbl">Hoe wil je starten?</div>
+        <div class="mpps-mode-grid">
+          <button class="mpps-mode-btn" id="mpps-btn-sit">
+            <span class="mpps-mode-icon">🪞</span>
+            <div class="mpps-mode-name" data-i18n="mpps.sit.name">Mijn situatie</div>
+            <div class="mpps-mode-desc" data-i18n="mpps.sit.desc">Beantwoord vragen over jouw echte financiën</div>
+          </button>
+          <button class="mpps-mode-btn" id="mpps-btn-char">
+            <span class="mpps-mode-icon">🎭</span>
+            <div class="mpps-mode-name" data-i18n="mpps.char.name">Kies karakter</div>
+            <div class="mpps-mode-desc" data-i18n="mpps.char.desc">Kies een voorinstelling om mee te spelen</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel 2A: survey -->
+      <div id="mpps-panel-survey" class="hidden">
+        <div class="mpps-survey" id="mpps-survey-body"></div>
+        <div class="mpps-snav">
+          <button class="mpps-back-btn" id="mpps-s-back" data-i18n="sp.btn.back">← Terug</button>
+          <div class="mpps-sdots" id="mpps-sdots"></div>
+          <button class="mpps-next-btn" id="mpps-s-next" data-i18n="ob.btn.next">Volgende →</button>
+        </div>
+      </div>
+
+      <!-- Panel 2B: diagnosis after survey -->
+      <div id="mpps-panel-diag" class="hidden">
+        <div id="mpps-diag-content"></div>
+        <button class="mpps-confirm" id="mpps-diag-confirm" data-i18n="mpps.diag.confirm">Gebruik dit profiel →</button>
+        <button class="mpps-back-btn mpps-wide-back" id="mpps-diag-back" data-i18n="mpps.diag.back">← Opnieuw doen</button>
+      </div>
+
+      <!-- Panel 2C: character picker -->
+      <div id="mpps-panel-char" class="hidden">
+        <div class="mpps-char-list" id="mpps-char-list"></div>
+        <button class="mpps-confirm" id="mpps-char-confirm" disabled data-i18n="mpps.char.confirm">▶ Speel dit karakter</button>
+        <button class="mpps-back-btn mpps-wide-back" id="mpps-char-back" data-i18n="mpps.char.back">← Terug</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ HANDOFF OVERLAY ═══════════════════════════════════════════════════════ -->
+  <div id="handoff-overlay" class="hidden">
+    <div class="handoff-panel">
+      <div class="handoff-icon">📲</div>
+      <div class="handoff-sub" data-i18n="handoff.sub">Geef het apparaat door aan</div>
+      <div class="handoff-name" id="handoff-name">Player</div>
+      <div id="handoff-token-wrap" style="margin-bottom:16px"></div>
+      <div class="handoff-msg" id="handoff-msg" data-i18n="handoff.msg">Jij bent aan de beurt — pak het apparaat en gooi wanneer je klaar bent.</div>
+      <button class="handoff-btn" id="handoff-btn" data-i18n="handoff.btn">Ik ben klaar — go! →</button>
+    </div>
+  </div>
+
+  <div id="setup-screen" class="hidden">
+    <div class="setup-card">
+      <button class="ob-to-mode" id="setup-btn-back" data-i18n="sp.btn.back">← Terug</button>
+      <div class="setup-logo" data-i18n="brand.cashflow">FXminds · Cashflow Simulator</div>
+      <h1 class="setup-title">Bouw jouw<br>financiële vrijheid</h1>
+      <p class="setup-subtitle" data-i18n="setup.sub">Bouw passief inkomen op totdat het je uitgaven dekt — en beslis dan wat er daarna komt. De meeste mensen komen nooit zover.</p>
+      <div class="setup-goal">
+        <span data-i18n="setup.goal" data-i18n-html="1"><strong>🎯 Missie:</strong> Bouw passief inkomen op dat je uitgaven overtreft. Elke beslissing verbindt zich. Elke maand uitstel kost je geld.</span>
+      </div>
+      <div class="form-group">
+        <label for="player-name" data-i18n="setup.name.lbl">Jouw naam</label>
+        <input type="text" id="player-name" placeholder="Voer jouw naam in" maxlength="24" value="Alex" data-i18n-ph="sp.name.ph">
+      </div>
+      <div class="form-group">
+        <label for="player-profession" data-i18n="setup.prof.lbl">Startberoep</label>
+        <select id="player-profession">
+          <option value="Software Engineer">Software Engineer — €3.500/mnd</option>
+          <option value="Teacher">Leraar — €3.000/mnd (lage lasten)</option>
+          <option value="Doctor">Dokter — €6.000/mnd (hoge lasten)</option>
+          <option value="Entrepreneur">Ondernemer — €4.500/mnd (hoog risico)</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="btn-start" data-i18n="setup.btn">▶ Begin simulatie</button>
+    </div>
+  </div>
+
+  <!-- ══ GAME SCREEN ════════════════════════════════════════════════════════ -->
+  <div id="game-screen" class="hidden">
+
+    <!-- Header -->
+    <header class="game-header">
+      <div class="game-logo" data-i18n="brand.game_logo">Cashflow Simulator <span>· by FXminds</span></div>
+      <span class="ft-badge hidden" id="ft-badge">🚀 Fast Track</span>
+      <div id="message-bar">—</div>
+      <div class="mp-cur-player hidden" id="mp-cur-player">
+        <span class="mp-cur-dot" id="mp-cur-dot"></span>
+        <span class="mp-cur-lbl" data-i18n="header.turn.lbl">Beurt:</span>
+        <span class="mp-cur-name" id="mp-cur-name">Player</span>
+      </div>
+      <div class="header-actions">
+        <div class="audio-controls">
+          <button class="audio-btn audio-on" id="btn-sfx" title="Toggle sound effects">
+            <span class="audio-btn-icon">🔊</span> <span data-i18n="header.sfx">SFX</span>
+          </button>
+          <span class="audio-hint" data-i18n="header.spotify">🎵 Gebruik Spotify</span>
+        </div>
+        <button class="btn-secondary" id="btn-statement" data-i18n="header.statement">📊 Overzicht</button>
+        <button class="btn-secondary" id="btn-restart" data-i18n="header.restart">↺ Herstarten</button>
+        <button class="btn-secondary" id="btn-challenge" onclick="showDailyChallenge()" title="Dagelijkse uitdaging">🎯</button>
+        <button class="btn-secondary" id="btn-community" onclick="showCommunity()" title="FXminds Community">🏫</button>
+      </div>
+    </header>
+
+
+    <!-- ══ MOBILE PANEL TOGGLE BAR ══════════════════════════════════════════ -->
+    <div class="mobile-panel-bar hidden" id="mobile-panel-bar">
+      <button class="mpb-btn" onclick="togglePanel('stats-panel')" id="mpb-stats">📊 Stats</button>
+      <button class="mpb-btn" onclick="togglePanel('right-panel')" id="mpb-right">📈 Analyse</button>
+      <button class="mpb-btn" onclick="document.getElementById('btn-roll').click()" id="mpb-roll">🎲 Gooi</button>
+      <button class="mpb-btn mpb-challenge" onclick="showDailyChallenge()" id="mpb-challenge">🎯 Challenge</button>
+    </div>
+
+    <!-- Left: Stats + Controls -->
+    <aside id="stats-panel">
+
+      <!-- Net Cashflow hero -->
+      <div class="cf-hero">
+        <div class="cf-label" data-i18n="stats.cf.lbl">Netto cashflow / mnd</div>
+        <div class="cf-value positive" id="stat-cashflow">+€0</div>
+        <div class="cf-sub"><span data-i18n="stats.cash.lbl">Beschikbaar:</span> <span id="stat-cash">€0</span></div>
+      </div>
+
+      <!-- Roll Controls -->
+      <div class="ctrl-sect">
+        <div class="sect-lbl" data-i18n="stats.controls">Bediening</div>
+        <button id="btn-roll" disabled data-i18n="stats.roll">🎲 Gooi dobbelstenen</button>
+        <div id="dice-display"></div>
+      </div>
+
+      <!-- Win Progress -->
+      <div class="prog-sect">
+        <div class="sect-lbl" data-i18n="stats.escape.lbl">Ontsnappingsvoortgang</div>
+        <div class="prog-track">
+          <div class="progress-fill" id="win-progress-bar" style="width:0%"></div>
+        </div>
+        <div id="win-progress-label">Voortgang richting financiële vrijheid</div>
+      </div>
+
+      <!-- Stats body -->
+      <div class="stats-body">
+
+        <div class="sg">
+          <div class="sg-title" data-i18n="stats.income.title">Inkomen</div>
+          <div class="stat-row">
+            <span class="stat-label" data-i18n="stats.income.active">💼 Actief</span>
+            <span class="stat-value positive" id="stat-income">€0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-i18n="stats.income.passive">🏦 Passief</span>
+            <span class="stat-value positive" id="stat-passive">€0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-i18n="stats.expenses">🔴 Uitgaven</span>
+            <span class="stat-value negative" id="stat-expenses">€0</span>
+          </div>
+        </div>
+
+        <!-- Portfolio accordion -->
+        <div class="sg">
+          <div class="sg-title" data-i18n="stats.portfolio">Portefeuille</div>
+          <div class="stat-row">
+            <span class="stat-label" data-i18n="stats.networth">📈 Nettovermogen</span>
+            <span class="stat-value" id="stat-net-worth">€0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-i18n="stats.turn">🎲 Beurt</span>
+            <span class="stat-value" id="stat-turn">1</span>
+          </div>
+        </div>
+
+        <!-- Assets accordion -->
+        <div class="accord-sect" id="accord-assets">
+          <button class="accord-hdr" onclick="window._game.ui.toggleAccord('assets')">
+            <span class="accord-lbl">🏠 Assets <span id="stat-assets-count" class="accord-count">0</span></span>
+            <span class="accord-arrow" id="accord-arrow-assets">›</span>
+          </button>
+          <div class="accord-body hidden" id="accord-body-assets">
+            <div id="portfolio-assets-list"><div class="accord-empty" data-i18n="stats.assets.empty">Nog geen bezittingen</div></div>
+          </div>
+        </div>
+
+        <!-- Debts accordion -->
+        <div class="accord-sect" id="accord-debts">
+          <button class="accord-hdr" onclick="window._game.ui.toggleAccord('debts')">
+            <span class="accord-lbl">💳 Debts <span id="stat-debts-count" class="accord-count">0</span></span>
+            <span class="accord-arrow" id="accord-arrow-debts">›</span>
+          </button>
+          <div class="accord-body hidden" id="accord-body-debts">
+            <div id="portfolio-debts-list"><div class="accord-empty" data-i18n="stats.debts.empty">Geen schulden</div></div>
+          </div>
+        </div>
+
+      <!-- XP / Investor Level -->
+      <div class="xp-sect">
+        <div class="xp-header">
+          <span class="sect-lbl" style="margin-bottom:0" data-i18n="stats.level.title">Investeerdersniveau</span>
+          <span id="xp-level-label" class="xp-lv-badge">Lv 1</span>
+        </div>
+        <div id="xp-title" class="xp-title-text">Rookie</div>
+        <div class="xp-track">
+          <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      </div><!-- /stats-body -->
+    </aside>
+
+    <!-- Center: Board -->
+    <main class="board-area">
+      <div class="board-header" data-i18n="board.title">De Ratrace — vind de uitgang</div>
+      <div id="game-board"></div>
+      <div class="board-legend">
+        <div class="legend-item"><span class="ld ld-pay"></span><span data-i18n="board.leg.payday">Salaris</span></div>
+        <div class="legend-item"><span class="ld ld-opp"></span><span data-i18n="board.leg.opp">Kans</span></div>
+        <div class="legend-item"><span class="ld ld-bad"></span><span data-i18n="board.leg.bad">Tegenslag</span></div>
+        <div class="legend-item"><span class="ld ld-cho"></span><span data-i18n="board.leg.choice">Keuze</span></div>
+        <div class="legend-item"><span class="ld ld-rst"></span><span data-i18n="board.leg.rest">Rust</span></div>
+        <div class="legend-item"><span class="ld ld-you"></span><span data-i18n="board.leg.you">Jij</span></div>
+      </div>
+    </main>
+
+    <!-- Right: Live Feed + Statement -->
+    <aside id="right-panel">
+
+      <!-- ① Recent Events — compact, scrollable, low visual weight -->
+      <div class="rp-feed-hdr">
+        <span class="rp-feed-lbl" data-i18n="rp.events.title">Recente gebeurtenissen</span>
+        <span class="rp-feed-count" id="rp-feed-count">0</span>
+      </div>
+      <div class="rp-feed" id="rp-feed">
+        <div class="rp-event rp-ev-sys" data-i18n="rp.events.waiting">Wachten tot het spel begint…</div>
+      </div>
+
+      <!-- ② Statement Panel — primary element -->
+      <div class="rp-stmt" id="rp-stmt">
+
+        <!-- Player selector -->
+        <div class="rp-player-bar">
+          <span class="rp-player-lbl" data-i18n="rp.view.lbl">Bekijk</span>
+          <select class="rp-player-sel" id="rp-player-sel" disabled>
+            <option value="0" data-i18n="rp.view.me">Ik</option>
+          </select>
+        </div>
+
+        <!-- Section tabs -->
+        <div class="rp-tabs" id="rp-tabs">
+          <button class="rp-tab rp-tab-active" data-tab="overview" data-i18n="rp.tab.overview">Overzicht</button>
+          <button class="rp-tab" data-tab="assets" data-i18n="rp.tab.assets">Bezittingen</button>
+          <button class="rp-tab" data-tab="debts" data-i18n="rp.tab.debts">Schulden</button>
+          <button class="rp-tab" data-tab="cashflow" data-i18n="rp.tab.cashflow">Cashflow</button>
+        </div>
+
+        <!-- Tab body -->
+        <div class="rp-sect-body" id="rp-sect-body">
+          <!-- rendered by JS -->
+        </div>
+
+      </div><!-- /rp-stmt -->
+
+    </aside>
+
+  </div><!-- /game-screen -->
+
+  <!-- Mentor Panel -->
+  <div id="mentor-panel" class="hidden">
+    <button class="mentor-close" onclick="document.getElementById('mentor-panel').classList.add('hidden')">✕</button>
+    <div class="mentor-inner">
+      <span id="mentor-emoji" class="mentor-emoji">💡</span>
+      <div class="mentor-text">
+        <div class="mentor-fx-label" data-i18n="mentor.label">FXminds Mentor Inzicht</div>
+        <div id="mentor-headline" class="mentor-headline">Tip</div>
+        <div id="mentor-body"     class="mentor-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlays -->
+  <div id="card-modal"      class="hidden"></div>
+  <div id="statement-panel" class="hidden"></div>
+  <div id="win-overlay"     class="hidden"></div>
+  <div id="ft-overlay"      class="hidden"></div>
+
+
+
+
+  <!-- ══ DAILY CHALLENGE OVERLAY ══════════════════════════════════════════════ -->
+
+  <!-- ══ CONFETTI CANVAS ══════════════════════════════════════════════════════ -->
+  <canvas id="confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9000;display:none"></canvas>
+
+  <!-- ══ CHALLENGE CELEBRATION BANNER ════════════════════════════════════════ -->
+  <div id="challenge-banner" class="hidden">
+    <div class="ch-banner-inner">
+      <div class="ch-banner-icon">🎯</div>
+      <div class="ch-banner-body">
+        <div class="ch-banner-title">Dagrondje voltooid!</div>
+        <div class="ch-banner-sub">Goed bezig. Je komt steeds dichter bij financiële vrijheid.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ FAST TRACK MISSION OVERLAY ══════════════════════════════════════════ -->
+  <div id="ft-mission-overlay" class="hidden">
+    <div class="ftm-backdrop" onclick="closeFTMission()"></div>
+    <div class="ftm-panel">
+      <button class="lp-close" onclick="closeFTMission()">✕</button>
+      <div class="ftm-icon" id="ftm-icon">🏆</div>
+      <div class="ftm-badge">Fast Track Missie</div>
+      <h2 class="ftm-title" id="ftm-title">Missie voltooid!</h2>
+      <div class="ftm-body" id="ftm-body"></div>
+      <div class="ftm-next" id="ftm-next"></div>
+      <button class="ftm-continue" onclick="closeFTMission()">▶ Verder spelen</button>
+      <button class="ftm-community" onclick="closeFTMission();showCommunity()">🏫 FXminds Community bekijken</button>
+    </div>
+  </div>
+
+  <!-- ══ ECONOMIC EVENT BANNER ════════════════════════════════════════════════ -->
+  <div id="econ-event-banner" class="hidden">
+    <div class="econ-banner-inner" id="econ-banner-inner">
+      <span class="econ-banner-icon" id="econ-banner-icon">📉</span>
+      <div class="econ-banner-body">
+        <div class="econ-banner-title" id="econ-banner-title">Economische recessie</div>
+        <div class="econ-banner-sub"   id="econ-banner-sub">Vastgoedprijzen dalen met 30%</div>
+      </div>
+      <button class="econ-banner-close" onclick="document.getElementById('econ-event-banner').classList.add('hidden')">✕</button>
+    </div>
+  </div>
+
+  <!-- ══ SKOOL FAST TRACK POPUP ════════════════════════════════════════════════ -->
+  <div id="skool-ft-popup" class="hidden">
+    <div class="lp-backdrop" onclick="document.getElementById('skool-ft-popup').classList.add('hidden')"></div>
+    <div class="skool-ft-panel">
+      <button class="lp-close" onclick="document.getElementById('skool-ft-popup').classList.add('hidden')">✕</button>
+      <div class="skool-ft-icon">🚀</div>
+      <h2 class="skool-ft-title">Wil je dit ook in het echte leven bereiken?</h2>
+      <p class="skool-ft-sub">Je bent ontsnapt aan de Ratrace in de simulator. In de FXminds Community leer je hoe je dit vertaalt naar echte beleggingen.</p>
+      <a class="comm-cta-btn" href="https://www.fxminds.nl/skool" target="_blank" rel="noopener" onclick="document.getElementById('skool-ft-popup').classList.add('hidden')">
+        🚀 Gratis lid worden
+      </a>
+      <button class="skool-ft-skip" onclick="document.getElementById('skool-ft-popup').classList.add('hidden')">Misschien later</button>
+    </div>
+  </div>
+
+  <div id="challenge-overlay" class="hidden">
+    <div class="challenge-panel">
+      <button class="lb-close" onclick="document.getElementById('challenge-overlay').classList.add('hidden')">✕</button>
+      <div class="ch-header">
+        <div class="ch-icon">🎯</div>
+        <div class="ch-title">Dagelijkse Challenge</div>
+        <div class="ch-date" id="ch-date"></div>
+      </div>
+      <div id="ch-new-badge" class="ch-new-badge hidden">Nieuwe uitdaging beschikbaar</div>
+      <div class="ch-streak-bar">
+        <div class="ch-streak-label">🔥 Huidige reeks</div>
+        <div class="ch-streak-val" id="ch-streak-val">0 dagen</div>
+      </div>
+      <div class="ch-goal-card" id="ch-goal-card">
+        <!-- filled by JS -->
+      </div>
+      <div class="ch-history" id="ch-history"></div>
+      <button class="ch-share-btn" id="ch-share-btn" onclick="shareDailyChallenge()">📤 Deel mijn voortgang</button>
+    </div>
+  </div>
+
+  <!-- ══ COMMUNITY CTA OVERLAY ════════════════════════════════════════════════ -->
+  <div id="community-overlay" class="hidden">
+    <div class="community-panel">
+      <button class="lb-close" onclick="document.getElementById('community-overlay').classList.add('hidden')">✕</button>
+      <div class="comm-icon">🏫</div>
+      <div class="comm-title">FXminds Community</div>
+      <div class="comm-sub">Zet de eerste stap naar passief inkomen.<br>Meer dan 1.000 mensen leren hier al hoe ze hun cashflow laten groeien.</div>
+      <div class="comm-features">
+        <div class="comm-feat">✓ Wekelijkse live sessies</div>
+        <div class="comm-feat">✓ Community van gelijkgestemden</div>
+        <div class="comm-feat">✓ Directe feedback van FXminds coaches</div>
+      </div>
+      <a class="comm-cta-btn" href="https://www.fxminds.nl/skool" target="_blank" rel="noopener" onclick="document.getElementById('community-overlay').classList.add('hidden')">
+        🚀 Gratis lid worden
+      </a>
+    </div>
+  </div>
+
+  <!-- ══ LOCAL LEADERBOARD ═══════════════════════════════════════════════════ -->
+  <div id="leaderboard-overlay" class="hidden">
+    <div class="lb-panel">
+      <button class="lb-close" onclick="document.getElementById('leaderboard-overlay').classList.add('hidden')">✕</button>
+      <div class="lb-title">🏆 Mijn Scores</div>
+      <div id="leaderboard" class="lb-list"></div>
+      <button class="lb-clear" onclick="localStorage.removeItem('fxminds_scores');updateLeaderboard(null)">Wis scores</button>
+    </div>
+  </div>
+
+  <!-- ══ VIRAL SHARE OVERLAY ══════════════════════════════════════════════════ -->
+  <div id="share-overlay" class="hidden">
+    <div class="share-panel">
+      <button class="lb-close" onclick="document.getElementById('share-overlay').classList.add('hidden')">✕</button>
+      <div class="share-title">📤 Deel jouw score</div>
+      <div class="share-card-preview" id="share-card-text"></div>
+      <div class="share-actions">
+        <a id="share-wa"  class="share-btn share-wa"  href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <a id="share-x"   class="share-btn share-x"   href="#" target="_blank" rel="noopener">𝕏 Twitter / X</a>
+        <button class="share-btn share-copy" onclick="copyShareText()">📋 Kopiëren</button>
+        <button class="share-btn share-img"  onclick="downloadScoreScreenshot()">📸 Screenshot</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ══ LOAD VIA EMAIL MODAL ══════════════════════════════════════════════════ -->
+  <div id="load-email-modal" class="hidden">
+    <div class="lp-backdrop" onclick="FXSave.closeLoadModal()"></div>
+    <div class="lem-panel">
+      <button class="lp-close" onclick="FXSave.closeLoadModal()">✕</button>
+      <div class="lem-icon">📧</div>
+      <h2 class="lem-title">Spel laden via e-mail</h2>
+      <p class="lem-sub">Voer je e-mailadres in waarmee je eerder gespeeld hebt. We laden je opgeslagen voortgang.</p>
+      <div class="lp-field-wrap" style="margin-bottom:14px">
+        <label class="lp-label" for="lem-email-input">E-mailadres</label>
+        <input class="lp-input" id="lem-email-input" type="email" placeholder="jouw@email.nl" autocomplete="email">
+      </div>
+      <div class="lp-err" id="lem-err" style="display:none"></div>
+      <button class="lp-submit" id="lem-submit-btn" onclick="FXSave.loadFromEmail()">📂 Laad mijn spel</button>
+      <p class="lem-footnote">Geen opgeslagen spel? Begin een nieuw spel en sla je score op om voortgang te bewaren.</p>
+    </div>
+  </div>
+
+  <!-- ══ PROGRESSION TIER OVERLAY ════════════════════════════════════════════ -->
+  <div id="tier-up-overlay" class="hidden">
+    <div class="lp-backdrop" onclick="closeTierUp()"></div>
+    <div class="tier-panel">
+      <div class="tier-firework" id="tier-firework">🎆</div>
+      <div class="tier-badge-new" id="tier-badge-new">NIEUW LEVEL</div>
+      <div class="tier-icon" id="tier-icon">📈</div>
+      <h2 class="tier-title" id="tier-title">Fast Track</h2>
+      <p class="tier-sub" id="tier-sub">Je bent ontsnapt aan de Ratrace en betreedt een nieuw niveau van financiële vrijheid.</p>
+      <div class="tier-perks" id="tier-perks"></div>
+      <button class="lp-submit" onclick="closeTierUp()">▶ Verder spelen</button>
+    </div>
+  </div>
+
+  <!-- ══ AUTOSAVE TOAST ════════════════════════════════════════════════════════ -->
+  <div id="autosave-toast" class="hidden">
+    <span class="as-icon">💾</span>
+    <span class="as-text">Voortgang bewaard</span>
+  </div>
+
+
+  <!-- ══ HUD PROGRESS MESSAGE ═════════════════════════════════════════════════ -->
+  <div id="hud-progress-msg" class="hidden">
+    <div class="hpm-inner" id="hpm-inner">
+      <span class="hpm-icon" id="hpm-icon">📈</span>
+      <span class="hpm-text" id="hpm-text"></span>
+    </div>
+  </div>
+
+  <!-- ══ SOCIAL COMPARISON TOAST ══════════════════════════════════════════════ -->
+  <div id="social-toast" class="hidden">
+    <div class="sc-inner">
+      <span class="sc-icon">🏆</span>
+      <span class="sc-text" id="sc-text">Je speelt beter dan 73% van de spelers.</span>
+    </div>
+  </div>
+
+  <!-- ══ TOP-10 LEADERBOARD POPUP ═════════════════════════════════════════════ -->
+  <div id="lb-top10-popup" class="hidden">
+    <div class="lp-backdrop" onclick="closeLBPopup()"></div>
+    <div class="lb10-panel">
+      <button class="lp-close" onclick="closeLBPopup()">✕</button>
+      <div class="lb10-trophy">🏆</div>
+      <h2 class="lb10-title" id="lb10-title">Je staat in de top 10!</h2>
+      <p class="lb10-sub" id="lb10-sub">Jouw passief inkomen plaatst je tussen de beste spelers.</p>
+      <div class="lb10-list" id="lb10-list"></div>
+      <div id="lb10-email-wrap">
+        <div class="lb10-claim-lbl">Vul je e-mailadres in om je score op te slaan in de top 10.</div>
+        <div class="lp-field-wrap" style="margin-bottom:10px">
+          <input class="lp-input" id="lb10-email" type="email" placeholder="jouw@email.nl" autocomplete="email">
+        </div>
+        <button class="lp-submit" id="lb10-claim-btn" onclick="claimLeaderboardSpot()">🏅 Claim mijn plek</button>
+      </div>
+      <div id="lb10-claimed" style="display:none" class="lb10-claimed-msg">
+        <div class="lb10-claimed-icon">✅</div>
+        <div class="lb10-claimed-txt">Score opgeslagen! Jij staat officieel in de top 10.</div>
+      </div>
+      <button class="lb10-skip" onclick="closeLBPopup()">Overslaan</button>
+    </div>
+  </div>
+
+  <!-- ══ REFERRAL REWARD POPUP ════════════════════════════════════════════════ -->
+  <div id="ref-reward-popup" class="hidden">
+    <div class="lp-backdrop" onclick="closeRefReward()"></div>
+    <div class="ref-reward-panel">
+      <button class="lp-close" onclick="closeRefReward()">✕</button>
+      <div class="ref-reward-icon">🎉</div>
+      <h2 class="ref-reward-title">3 vrienden hebben via jouw link meegespeeld!</h2>
+      <p class="ref-reward-sub">Je hebt exclusieve trading tips vrijgespeeld. Check je inbox voor de bonus content.</p>
+      <div class="ref-reward-unlocked">
+        <div class="rru-item">🎯 Exclusieve trading strategie PDF</div>
+        <div class="rru-item">📊 FXminds Portfolio checklist</div>
+        <div class="rru-item">🚀 Uitnodiging voor live sessie</div>
+      </div>
+      <a class="lp-submit" href="https://www.fxminds.nl/skool" target="_blank" rel="noopener" style="display:block;text-decoration:none;text-align:center" onclick="closeRefReward()">
+        🏫 Ga naar FXminds Community →
+      </a>
+      <button class="lb10-skip" onclick="closeRefReward()">Sluiten</button>
+    </div>
+  </div>
+
+
+  <!-- ══ XP LEVEL-UP POPUP ════════════════════════════════════════════════════ -->
+  <div id="xp-levelup-popup" class="hidden" aria-live="polite">
+    <div class="xlp-panel">
+      <div class="xlp-burst" id="xlp-burst">⭐</div>
+      <div class="xlp-label">NIVEAU OMHOOG!</div>
+      <div class="xlp-level" id="xlp-level">Level 3</div>
+      <div class="xlp-title" id="xlp-title">Investeerder</div>
+      <p  class="xlp-sub">Je financiële vaardigheden groeien.</p>
+      <div class="xlp-unlock" id="xlp-unlock" style="display:none">
+        <div class="xlp-unlock-lbl">🔓 Vrijgespeeld</div>
+        <div class="xlp-unlock-text" id="xlp-unlock-text"></div>
+      </div>
+      <button class="xlp-close" onclick="document.getElementById('xp-levelup-popup').classList.add('hidden')">
+        ▶ Verder spelen
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ STREAK REWARD POPUP ══════════════════════════════════════════════════ -->
+  <div id="streak-reward-popup" class="hidden">
+    <div class="lp-backdrop" onclick="closeStreakReward()"></div>
+    <div class="sr-panel">
+      <div class="sr-icon" id="sr-icon">🔥</div>
+      <div class="sr-streak" id="sr-streak">7 Dagen Streak!</div>
+      <h2 class="sr-title" id="sr-title">Beloning vrijgespeeld</h2>
+      <p class="sr-sub"  id="sr-sub">Je ontvangt een bonus beleggingskaart bij je volgende kans.</p>
+      <div class="sr-rewards" id="sr-rewards"></div>
+      <button class="lp-submit" onclick="closeStreakReward()">🎯 Verder spelen</button>
+    </div>
+  </div>
+
+  <!-- ══ STREAK BREAK POPUP ═══════════════════════════════════════════════════ -->
+  <div id="streak-break-popup" class="hidden">
+    <div class="lp-backdrop" onclick="document.getElementById('streak-break-popup').classList.add('hidden')"></div>
+    <div class="sr-panel sr-panel-break">
+      <div class="sr-icon">😔</div>
+      <h2 class="sr-title">Streak opnieuw gestart</h2>
+      <p class="sr-sub">Je reeks is opnieuw gestart. Kom morgen terug en bouw hem weer op.</p>
+      <div class="sr-new-streak">🔥 Dag 1 — Nieuwe reeks begonnen</div>
+      <button class="lp-submit" onclick="document.getElementById('streak-break-popup').classList.add('hidden')">
+        ▶ Start vandaag opnieuw
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ HUD STREAK INDICATOR ═════════════════════════════════════════════════ -->
+  <!-- Injected into game header by JS — no static HTML needed -->
+
+  <!-- ══ LEAD CAPTURE POPUP (Win / Lose / Exit) ═══════════════════════════════ -->
+  <div id="lead-popup" class="hidden" role="dialog" aria-modal="true" aria-labelledby="lp-title">
+    <div class="lp-backdrop" onclick="closeLead()"></div>
+    <div class="lp-panel" id="lp-panel">
+
+      <!-- Form state -->
+      <div id="lp-form-state">
+        <button class="lp-close" onclick="closeLead()" aria-label="Sluiten">✕</button>
+        <div class="lp-badge" id="lp-badge">🏆 Score opgeslagen</div>
+        <h2 class="lp-title" id="lp-title">Sla je score op</h2>
+        <p class="lp-sub" id="lp-sub">Wil je leren hoe succesvolle beleggers over geld nadenken?<br>Sla je score op en ontvang trading inzichten, podcast afleveringen, YouTube video's en strategie tips.</p>
+
+        <div class="lp-score-preview" id="lp-score-preview"></div>
+
+        <div class="lp-fields">
+          <div class="lp-field-wrap">
+            <label class="lp-label" for="lp-name">Voornaam <span class="lp-req">*</span></label>
+            <input class="lp-input" id="lp-name" type="text" placeholder="Jouw voornaam" autocomplete="given-name" maxlength="60">
+          </div>
+          <div class="lp-field-wrap">
+            <label class="lp-label" for="lp-email">E-mailadres <span class="lp-req">*</span></label>
+            <input class="lp-input" id="lp-email" type="email" placeholder="jouw@email.nl" autocomplete="email" maxlength="120">
+          </div>
+          <label class="lp-consent">
+            <input type="checkbox" id="lp-consent" class="lp-consent-check">
+            <span class="lp-consent-text">Ik ga akkoord met het ontvangen van e-mails van FXminds met trading inzichten en educatieve content. Ik kan mij op elk moment uitschrijven.</span>
+          </label>
+          <div class="lp-err" id="lp-err" style="display:none"></div>
+        </div>
+
+        <button class="lp-submit" id="lp-submit">💾 Sla mijn score op</button>
+        <button class="lp-skip" id="lp-skip" onclick="closeLead()">Overslaan</button>
+      </div>
+
+      <!-- Success state -->
+      <div id="lp-success-state" style="display:none">
+        <div class="lp-success-icon">✅</div>
+        <h2 class="lp-success-title">Score opgeslagen!</h2>
+        <div class="lp-success-score" id="lp-success-score"></div>
+        <p class="lp-success-sub">Check je inbox voor trading inzichten en strategie tips van FXminds.</p>
+
+        <!-- Share section -->
+        <div class="lp-share-section">
+          <div class="lp-share-title">📤 Deel jouw score</div>
+          <div class="lp-share-preview" id="lp-share-preview"></div>
+          <div class="lp-share-btns">
+            <a class="lp-share-btn lp-wa"   id="lp-wa"   href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
+            <a class="lp-share-btn lp-tw"   id="lp-tw"   href="#" target="_blank" rel="noopener">𝕏 Twitter / X</a>
+            <button class="lp-share-btn lp-copy" id="lp-copy" onclick="lpCopyLink()">📋 Kopiëren</button>
+          </div>
+        </div>
+
+        <!-- Referral section -->
+        <div class="lp-referral-section" id="lp-referral-section">
+          <div class="lp-ref-title">🔗 Nodig vrienden uit</div>
+          <div class="lp-ref-sub">Nodig 3 vrienden uit om te spelen via jouw link en ontgrendel <strong>exclusieve trading inzichten</strong>.</div>
+          <div class="lp-ref-link-wrap">
+            <input class="lp-ref-link-input" id="lp-ref-link-input" type="text" readonly>
+            <button class="lp-ref-copy" onclick="lpCopyRefLink()">Kopiëren</button>
+          </div>
+          <div class="lp-ref-progress" id="lp-ref-progress">
+            <span class="lp-ref-prog-lbl">Vrienden uitgenodigd:</span>
+            <span class="lp-ref-prog-val" id="lp-ref-prog-val">0 / 3</span>
+          </div>
+          <div class="lp-ref-dots" id="lp-ref-dots">
+            <span class="lp-ref-dot" id="lp-dot-0"></span>
+            <span class="lp-ref-dot" id="lp-dot-1"></span>
+            <span class="lp-ref-dot" id="lp-dot-2"></span>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="lp-lb-section">
+          <div class="lp-lb-title">🏅 Top 10 Scores</div>
+          <div class="lp-lb-list" id="lp-lb-list"></div>
+        </div>
+
+        <button class="lp-close-success" onclick="closeLead()">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EXIT INTENT POPUP ═════════════════════════════════════════════════════ -->
+  <div id="exit-popup" class="hidden" role="dialog" aria-modal="true">
+    <div class="lp-backdrop" onclick="closeExitPopup()"></div>
+    <div class="exit-panel">
+      <button class="lp-close" onclick="closeExitPopup()">✕</button>
+      <div class="exit-icon">⚠️</div>
+      <h2 class="exit-title">Wacht! Je voortgang gaat verloren</h2>
+      <p class="exit-sub">Sla je voortgang op voordat je vertrekt en ontvang gratis beleggersinzichten.</p>
+      <button class="exit-save-btn" onclick="closeExitPopup(); openLeadPopup('exit')">💾 Sla mijn score op</button>
+      <button class="exit-leave-btn" onclick="closeExitPopup()">Toch vertrekken</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+  <script src="script.js"></script>
+</body>
+</html>
