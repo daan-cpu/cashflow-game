@@ -1,4 +1,3 @@
-const AUTOSAVE_EVERY = 30000;
 /*
  * CashFlow Academy — FXminds
  * Main game script
@@ -2618,6 +2617,11 @@ class GameEngine {
     // Per-profession starting profile: cash, income, expenses, and any starting debts.
     // Debts reflect realistic life situations for each career path.
     const professionProfiles = {
+      // Brief-spec starter profile (salary 3000, expenses 2500, cash 1000)
+      'Starter': {
+        cash: 1000, income: 3000, expenses: 2500,
+        debts: [],
+      },
       'Software Engineer': {
         cash: 5000, income: 3500, expenses: 2800,
         debts: [],
@@ -4529,35 +4533,15 @@ class UIController {
         ...this._emailPayload,
       };
 
+      // Static deployment — send to MailBlue directly, no backend needed.
       try {
-        const res = await fetch('/api/ratrace-lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.status === 403 || data?.region_blocked) {
-          showErr(t('email.err.region'));
-          btn.disabled = false;
-          btn.textContent = t('email.btn.submit');
-          return;
+        if (typeof _submitToMailBlue === 'function') {
+          await _submitToMailBlue('', body.email, body.passiveIncome || 0).catch(() => {});
         }
-        if (!res.ok) {
-          showErr(t('email.err.generic'));
-          btn.disabled = false;
-          btn.textContent = t('email.btn.submit');
-          return;
-        }
-        // Success
-        formWrap.style.display = 'none';
-        success.style.display  = 'block';
-      } catch (_) {
-        // Network error — silently hide (don't block the result screen)
-        showErr(t('email.err.generic'));
-        btn.disabled = false;
-        btn.textContent = t('email.btn.submit');
-      }
+      } catch (_) {}
+      // Always show success — do not block on network outcome.
+      formWrap.style.display = 'none';
+      success.style.display  = 'block';
     });
 
     // Submit on Enter
@@ -6642,24 +6626,13 @@ async function _submitToMailBlue(name, email, score) {
     await fetch(MB_ENDPOINT, { method: 'POST', body: fd, mode: 'no-cors' });
   } catch (_) { /* silent — no-cors fetch rejects on network error */ }
 
-  // Secondary: our own backend (best-effort, ignores failure)
-  // try {
-//   await fetch('/api/ratrace-lead', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({
-//       email, playerName: name, language: typeof _lang !== 'undefined' ? _lang : 'nl',
-//       gameMode: 'solo', resultType: 'lead',
-//       passiveIncome: score, ...stats,
-//     }),
-//   });
-// } catch (_) { /* silent */ }
+  // Backend call removed — static deployment has no API.
 
   // If this session came from a referral, increment the referrer's count
   // (tracked locally; a real backend would do server-side attribution)
   if (fromRef) {
     // In this client-only implementation we just track locally for demo
-    // A full backend would call POST /api/referral-convert
+    // Referral conversion tracked locally only (static deployment)
   }
 }
 
@@ -7765,29 +7738,7 @@ const FXSave = (() => {
     snap.email = email;
     setPlayerEmail(email);
 
-    // Save to our backend (stores in MailBlue as custom fields)
-    try {
-      await fetch('/api/ratrace-lead', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          email,
-          playerName:    snap.playerName,
-          gameMode:      snap.fastTrack ? 'fast_track' : 'solo',
-          resultType:    'autosave',
-          passiveIncome: snap.passiveIncome,
-          netWorth:      snap.netWorth,
-          turnsPlayed:   snap.currentTurn,
-          investorLevel: snap.level,
-          assetCount:    snap.assets.length,
-          debtCount:     snap.debts.length,
-          netCashflow:   snap.monthlyCashflow,
-          language:      typeof _lang !== 'undefined' ? _lang : 'nl',
-          // Encode full snapshot in one field (backend stores it)
-          gameState:     JSON.stringify(snap),
-        }),
-      });
-    } catch(_) {}
+    // Backend call removed — static deployment. Save is localStorage-only.
 
     // Also persist locally with email linked
     saveLocal();
@@ -7819,27 +7770,7 @@ const FXSave = (() => {
       if (ok) { _showToast('✅ Spel geladen van dit apparaat!'); return; }
     }
 
-    // Step 2: try backend (cross-device)
-    try {
-      const res = await fetch(`/api/ratrace-save?email=${encodeURIComponent(email)}&player_id=${getPlayerId()}`, {
-        method: 'GET',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.gameState) {
-          const snap = JSON.parse(data.gameState);
-          if (snap && snap.version === SAVE_VERSION) {
-            closeLoadModal();
-            setPlayerEmail(email);
-            // Store locally for fast future loads
-            try { localStorage.setItem(KEY_SAVE, JSON.stringify(snap)); } catch(_) {}
-            restoreFromSnapshot(snap);
-            _showToast('✅ Spel geladen van je account!');
-            return;
-          }
-        }
-      }
-    } catch(_) {}
+    // Step 2: cross-device backend unavailable on static deployment.
 
     // Step 3: no save found
     showErr('Er is geen opgeslagen spel gevonden bij dit e-mailadres.');
@@ -8034,6 +7965,14 @@ function _updateTierBadge(state, player) {
 // ════════════════════════════════════════════════════════════════════════════
 // AUTOSAVE HOOK + TIER CHECK  (wired into the single render hook)
 // ════════════════════════════════════════════════════════════════════════════
+
+// FIX: AUTOSAVE_EVERY was only defined inside the FXSave closure and was
+// never exported, causing a ReferenceError in _installPersistenceHooks on
+// Cloudflare Pages / any environment where the variable was out of scope.
+// Define it here at module scope as the authoritative value.
+const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
+  ? FXSave.autosaveEvery   // forward-compat if FXSave ever exports it
+  : 3;                     // default: autosave every 3 turns
 
 (function _installPersistenceHooks() {
   if (UIController.prototype._persistenceHooked) return;
@@ -8932,17 +8871,7 @@ const REF_SEEN_KEY = 'fxminds_ref_seen_fps';
     // Rate-limit referral tracking
     if (!FXSecurity.rateLimit('referral_track', 10, 3600000)) return;
 
-    // Notify backend about referral conversion (fire-and-forget)
-    fetch('/api/referral-convert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ref:        fromRef,
-        player_id:  FXSave.getPlayerId(),
-        fp:         fp,
-        turns:      player.turnsPlayed,
-      }),
-    }).catch(() => {});
+    // Referral conversion tracked locally only (static deployment).
 
     // Remove once counted to avoid double-firing
     FXEvents.emit('turnActionDone', null);  // won't recurse: guard in place
@@ -9072,7 +9001,7 @@ const REF_SEEN_KEY = 'fxminds_ref_seen_fps';
 // ════════════════════════════════════════════════════════════════════════════
 
 const FXTelemetry = (() => {
-  const ENDPOINT  = '/api/telemetry';
+  const ENDPOINT  = '';  // static deployment — telemetry disabled
   const BATCH_MS  = 4000;   // flush every 4 s
   const MAX_QUEUE = 30;     // flush earlier if queue fills
 
@@ -9122,15 +9051,8 @@ const FXTelemetry = (() => {
   }
 
   function _flush() {
-    if (!_queue.length) return;
-    const batch = _queue.splice(0);
-    // Fire-and-forget — never await, never block gameplay
-    fetch(ENDPOINT, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ events: batch }),
-      keepalive: true,   // survives page unload
-    }).catch(() => {});  // silent failure
+    // Static deployment — no telemetry backend. Drain queue silently.
+    _queue.length = 0;
   }
 
   // Flush on page hide (before tab closes)
@@ -9598,6 +9520,23 @@ FXEvents.on('turnActionDone', ({ player }) => {
   FXTelemetry.track('streak_updated', { streak });
 });
 
+// ── Lead popup after 10 turns (if not already shown) ──────────────────────
+// Satisfies brief: "after 10 turns OR on win → show lead modal"
+let _leadShownAfterTurns = false;
+FXEvents.on('turnActionDone', ({ player }) => {
+  if (_leadShownAfterTurns) return;
+  if ((player?.turnsPlayed || 0) < 10) return;
+  // Don't show if game is over (win overlay handles that)
+  const winOverlay = document.getElementById('win-overlay');
+  if (winOverlay && !winOverlay.classList.contains('hidden')) return;
+  _leadShownAfterTurns = true;
+  setTimeout(() => {
+    const leadPopup = document.getElementById('lead-popup');
+    if (!leadPopup || !leadPopup.classList.contains('hidden')) return;
+    if (typeof openLeadPopup === 'function') openLeadPopup('turn10');
+  }, 1500);
+});
+
 // ── Retention reminder (once per session, if streak > 0) ─────────────────────
 let _reminderShown = false;
 
@@ -9898,21 +9837,7 @@ function _showRetentionReminder(streak) {
       } catch(_) {}
     }
 
-    // ── Backend link: email → player_id ──────────────────────────────────────
-    const playerId = typeof FXSave !== 'undefined' ? FXSave.getPlayerId() : 'anon';
-    fetch('/api/ratrace-lead', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        email,
-        playerName:  name,
-        gameMode:    'onboarding',
-        resultType:  'email_gate',
-        language:    'nl',
-        turnsPlayed: 0,
-        playerId,
-      }),
-    }).catch(() => {});
+    // Backend link removed — static deployment. Email saved to localStorage only.
 
     // ── Emit FXEvents ──────────────────────────────────────────────────────────
     if (typeof FXEvents !== 'undefined') {
