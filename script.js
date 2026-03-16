@@ -1,3 +1,4 @@
+const AUTOSAVE_EVERY = 30000;
 /*
  * CashFlow Academy — FXminds
  * Main game script
