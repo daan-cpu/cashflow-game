@@ -4423,44 +4423,51 @@ class UIController {
     `).join('');
 
     // Build personal finance snapshot — shown in every card so player can decide with context
-    const _cardState  = window._game?.engine?.getState?.();
-    const _cardPlayer = _cardState?.activePlayer;
-    const _snapHtml   = _cardPlayer ? (() => {
-      const cash      = _cardPlayer.cash ?? 0;
-      const passive   = _cardPlayer.passiveIncome ?? 0;
-      const expenses  = _cardPlayer.expenses ?? 0;
-      const cf        = _cardPlayer.monthlyCashflow ?? 0;
-      const coverage  = expenses > 0 ? Math.round((passive / expenses) * 100) : 0;
-      const cfClass   = cf >= 0 ? 'positive' : 'negative';
-      const barW      = Math.min(100, coverage);
-      const barColor  = coverage >= 100 ? '#00c896' : coverage >= 60 ? '#f59e0b' : '#3b82f6';
+    let _snapHtml = '';
+    try {
+      const _p = this.engine.getState().activePlayer;
+      if (_p) {
+        const _cash     = _p.cash ?? 0;
+        const _passive  = _p.passiveIncome ?? 0;
+        const _expenses = _p.expenses ?? 0;
+        const _cf       = _p.monthlyCashflow ?? 0;
+        const _cov      = _expenses > 0 ? Math.round((_passive / _expenses) * 100) : 0;
+        const _cfCls    = _cf >= 0 ? 'positive' : 'negative';
+        const _barW     = Math.min(100, _cov);
+        const _barColor = _cov >= 100 ? '#00c896' : _cov >= 60 ? '#f59e0b' : '#3b82f6';
+        const _pm       = (n) => c(n) + '/mnd';
 
-      // Coach advice
-      const _ca = typeof window.fxh_getCoachAdvice === 'function'
-        ? window.fxh_getCoachAdvice(_cardPlayer, card) : null;
-      const coachHtml = _ca ? `
-        <div class="card-coach">
-          <div class="card-coach-header">
-            <span class="card-coach-avatar">${_ca.coach.avatar}</span>
-            <span class="card-coach-name">${_ca.coach.name}</span>
-            <span class="card-coach-role">${_ca.coach.role}</span>
-          </div>
-          <div class="card-coach-advice">${_ca.advice}</div>
-        </div>` : '';
+        // Coach advice
+        let _coachHtml = '';
+        try {
+          const _ca = typeof window.fxh_getCoachAdvice === 'function'
+            ? window.fxh_getCoachAdvice(_p, card) : null;
+          if (_ca) {
+            _coachHtml = '<div class="card-coach">' +
+              '<div class="card-coach-header">' +
+                '<span class="card-coach-avatar">' + _ca.coach.avatar + '</span>' +
+                '<span class="card-coach-name">' + _ca.coach.name + '</span>' +
+                '<span class="card-coach-role">' + _ca.coach.role + '</span>' +
+              '</div>' +
+              '<div class="card-coach-advice">' + _ca.advice + '</div>' +
+            '</div>';
+          }
+        } catch(_ce) {}
 
-      return `<div class="card-snap">
-        <div class="card-snap-row">
-          <span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>${c(cash)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">${cpm(passive)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="${cfClass}">${cpm(cf)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>${coverage}%</strong></span>
-        </div>
-        <div class="card-snap-bar-wrap" title="Passief inkomen dekt ${coverage}% van je uitgaven">
-          <div class="card-snap-bar" style="width:${barW}%;background:${barColor}"></div>
-        </div>
-        ${coachHtml}
-      </div>`;
-    })() : '';
+        _snapHtml = '<div class="card-snap">' +
+          '<div class="card-snap-row">' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>' + c(_cash) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">' + _pm(_passive) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="' + _cfCls + '">' + _pm(_cf) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>' + _cov + '%</strong></span>' +
+          '</div>' +
+          '<div class="card-snap-bar-wrap">' +
+            '<div class="card-snap-bar" style="width:' + _barW + '%;background:' + _barColor + '"></div>' +
+          '</div>' +
+          _coachHtml +
+        '</div>';
+      }
+    } catch(_se) {}
 
     this.cardModal.innerHTML = `
       <div class="card-overlay" id="card-overlay">
@@ -4588,29 +4595,32 @@ class UIController {
       </button>
     `).join('');
 
-    const _cst  = window._game?.engine?.getState?.();
-    const _cp   = _cst?.activePlayer;
-    const _csnap = _cp ? (() => {
-      const cash     = _cp.cash ?? 0;
-      const passive  = _cp.passiveIncome ?? 0;
-      const expenses = _cp.expenses ?? 0;
-      const cf       = _cp.monthlyCashflow ?? 0;
-      const coverage = expenses > 0 ? Math.round((passive / expenses) * 100) : 0;
-      const cfClass  = cf >= 0 ? 'positive' : 'negative';
-      const barW     = Math.min(100, coverage);
-      const barColor = coverage >= 100 ? '#00c896' : coverage >= 60 ? '#f59e0b' : '#3b82f6';
-      return `<div class="card-snap">
-        <div class="card-snap-row">
-          <span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>${c(cash)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">${cpm(passive)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="${cfClass}">${cpm(cf)}</strong></span>
-          <span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>${coverage}%</strong></span>
-        </div>
-        <div class="card-snap-bar-wrap">
-          <div class="card-snap-bar" style="width:${barW}%;background:${barColor}"></div>
-        </div>
-      </div>`;
-    })() : '';
+    let _csnap = '';
+    try {
+      const _cp2 = this.engine.getState().activePlayer;
+      if (_cp2) {
+        const _c2cash = _cp2.cash ?? 0;
+        const _c2pass = _cp2.passiveIncome ?? 0;
+        const _c2exp  = _cp2.expenses ?? 0;
+        const _c2cf   = _cp2.monthlyCashflow ?? 0;
+        const _c2cov  = _c2exp > 0 ? Math.round((_c2pass / _c2exp) * 100) : 0;
+        const _c2cls  = _c2cf >= 0 ? 'positive' : 'negative';
+        const _c2bar  = Math.min(100, _c2cov);
+        const _c2col  = _c2cov >= 100 ? '#00c896' : _c2cov >= 60 ? '#f59e0b' : '#3b82f6';
+        const _pm2    = (n) => c(n) + '/mnd';
+        _csnap = '<div class="card-snap">' +
+          '<div class="card-snap-row">' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>' + c(_c2cash) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">' + _pm2(_c2pass) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="' + _c2cls + '">' + _pm2(_c2cf) + '</strong></span>' +
+            '<span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>' + _c2cov + '%</strong></span>' +
+          '</div>' +
+          '<div class="card-snap-bar-wrap">' +
+            '<div class="card-snap-bar" style="width:' + _c2bar + '%;background:' + _c2col + '"></div>' +
+          '</div>' +
+        '</div>';
+      }
+    } catch(_cse) {}
 
     this.cardModal.innerHTML = `
       <div class="card-overlay">
