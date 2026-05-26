@@ -4422,10 +4422,51 @@ class UIController {
       </button>
     `).join('');
 
+    // Build personal finance snapshot — shown in every card so player can decide with context
+    const _cardState  = window._game?.engine?.getState?.();
+    const _cardPlayer = _cardState?.activePlayer;
+    const _snapHtml   = _cardPlayer ? (() => {
+      const cash      = _cardPlayer.cash ?? 0;
+      const passive   = _cardPlayer.passiveIncome ?? 0;
+      const expenses  = _cardPlayer.expenses ?? 0;
+      const cf        = _cardPlayer.monthlyCashflow ?? 0;
+      const coverage  = expenses > 0 ? Math.round((passive / expenses) * 100) : 0;
+      const cfClass   = cf >= 0 ? 'positive' : 'negative';
+      const barW      = Math.min(100, coverage);
+      const barColor  = coverage >= 100 ? '#00c896' : coverage >= 60 ? '#f59e0b' : '#3b82f6';
+
+      // Coach advice
+      const _ca = typeof window.fxh_getCoachAdvice === 'function'
+        ? window.fxh_getCoachAdvice(_cardPlayer, card) : null;
+      const coachHtml = _ca ? `
+        <div class="card-coach">
+          <div class="card-coach-header">
+            <span class="card-coach-avatar">${_ca.coach.avatar}</span>
+            <span class="card-coach-name">${_ca.coach.name}</span>
+            <span class="card-coach-role">${_ca.coach.role}</span>
+          </div>
+          <div class="card-coach-advice">${_ca.advice}</div>
+        </div>` : '';
+
+      return `<div class="card-snap">
+        <div class="card-snap-row">
+          <span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>${c(cash)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">${cpm(passive)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="${cfClass}">${cpm(cf)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>${coverage}%</strong></span>
+        </div>
+        <div class="card-snap-bar-wrap" title="Passief inkomen dekt ${coverage}% van je uitgaven">
+          <div class="card-snap-bar" style="width:${barW}%;background:${barColor}"></div>
+        </div>
+        ${coachHtml}
+      </div>`;
+    })() : '';
+
     this.cardModal.innerHTML = `
       <div class="card-overlay" id="card-overlay">
         <div class="card-panel ${isOpportunity ? 'card-opportunity' : 'card-bad'} ${severityClass}">
           <div class="card-band"></div>
+          ${_snapHtml}
           <div class="card-header">
             <span class="card-type-badge">${isOpportunity ? t('card.badge.opp') : t('card.badge.bad')}</span>
             ${!isOpportunity && card.severity ? `<span class="severity-badge sev-${card.severity}">${card.severity === 'critical' ? t('card.sev.critical') : card.severity === 'high' ? t('card.sev.high') : card.severity === 'medium' ? t('card.sev.medium') : t('card.sev.low')}</span>` : ''}
@@ -4547,10 +4588,35 @@ class UIController {
       </button>
     `).join('');
 
+    const _cst  = window._game?.engine?.getState?.();
+    const _cp   = _cst?.activePlayer;
+    const _csnap = _cp ? (() => {
+      const cash     = _cp.cash ?? 0;
+      const passive  = _cp.passiveIncome ?? 0;
+      const expenses = _cp.expenses ?? 0;
+      const cf       = _cp.monthlyCashflow ?? 0;
+      const coverage = expenses > 0 ? Math.round((passive / expenses) * 100) : 0;
+      const cfClass  = cf >= 0 ? 'positive' : 'negative';
+      const barW     = Math.min(100, coverage);
+      const barColor = coverage >= 100 ? '#00c896' : coverage >= 60 ? '#f59e0b' : '#3b82f6';
+      return `<div class="card-snap">
+        <div class="card-snap-row">
+          <span class="card-snap-item"><span class="card-snap-lbl">💵 Cash</span><strong>${c(cash)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">📥 Passief</span><strong class="positive">${cpm(passive)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">📊 Cashflow</span><strong class="${cfClass}">${cpm(cf)}</strong></span>
+          <span class="card-snap-item"><span class="card-snap-lbl">🎯 Vrijheid</span><strong>${coverage}%</strong></span>
+        </div>
+        <div class="card-snap-bar-wrap">
+          <div class="card-snap-bar" style="width:${barW}%;background:${barColor}"></div>
+        </div>
+      </div>`;
+    })() : '';
+
     this.cardModal.innerHTML = `
       <div class="card-overlay">
         <div class="card-panel card-choice">
           <div class="card-band"></div>
+          ${_csnap}
           <div class="card-header">
             <span class="card-type-badge">${t('card.badge.choice')}</span>
             ${this._mpPlayerBadge()}
@@ -11660,6 +11726,148 @@ function fxh_getPlayerName() {
 })();
 
 // (fxh_fxhFixNameUI: targeted fix above handles this)
+
+// ════════════════════════════════════════════════════════════════════════════
+// FXH COACH SYSTEM — Daan, Stan, Luc, Enzo
+// Geeft context-specifiek advies op elke kaart op basis van spelersituatie.
+// Elke coach heeft een eigen stijl en specialiteit.
+// ════════════════════════════════════════════════════════════════════════════
+(function() {
+
+  const COACHES = {
+    daan: {
+      name: 'Daan',
+      avatar: '🧠',
+      role: 'FXminds oprichter',
+      style: 'direct', // confronterend, geen sugarcoating
+    },
+    stan: {
+      name: 'Stan',
+      avatar: '📊',
+      role: 'Cashflow strateeg',
+      style: 'analytical', // cijfers en ratio's
+    },
+    luc: {
+      name: 'Luc',
+      avatar: '🏗️',
+      role: 'Vastgoed & assets',
+      style: 'builder', // langetermijn opbouw
+    },
+    enzo: {
+      name: 'Enzo',
+      avatar: '⚡',
+      role: 'Fast track specialist',
+      style: 'aggressive', // snelle groei, hoog risico
+    },
+  };
+
+  // Kies coach op basis van spelersituatie en kaarttype
+  function _pickCoach(player, card) {
+    if (!player) return COACHES.daan;
+    const cf       = player.monthlyCashflow ?? 0;
+    const coverage = player.expenses > 0 ? (player.passiveIncome / player.expenses) : 0;
+    const inFT     = window._game?.engine?.getState?.()?.fastTrack;
+
+    if (inFT)                   return COACHES.enzo;   // Fast Track = Enzo
+    if (card?.type === 'bad_event') return COACHES.stan; // Tegenslag = Stan (cijfers)
+    if (coverage < 0.1)         return COACHES.daan;   // Beginner = Daan (direct)
+    if (player.assets?.length >= 2) return COACHES.luc; // Gebouwd = Luc
+    return COACHES.stan;                                // Standaard = Stan
+  }
+
+  // Genereer advies op basis van situatie
+  function _getAdvice(player, card, coach) {
+    if (!player || !card) return null;
+
+    const cash      = player.cash ?? 0;
+    const passive   = player.passiveIncome ?? 0;
+    const expenses  = player.expenses ?? 0;
+    const cf        = player.monthlyCashflow ?? 0;
+    const coverage  = expenses > 0 ? Math.round((passive / expenses) * 100) : 0;
+    const canAfford = card.cost ? cash >= card.cost : true;
+    const isOpp     = card.type === 'opportunity';
+    const isBad     = card.type === 'bad_event';
+
+    // ── Opportunity kaart ────────────────────────────────────────────────────
+    if (isOpp) {
+      if (!canAfford) {
+        // Kan het niet kopen
+        const tips = {
+          daan: `Je hebt €${Math.round(card.cost - cash).toLocaleString('nl-NL')} te weinig. Passen is de enige optie — maar onthoud: elke gemiste kans is een gemiste maandelijkse cashflow.`,
+          stan: `Cash: €${Math.round(cash).toLocaleString('nl-NL')} / Nodig: €${Math.round(card.cost).toLocaleString('nl-NL')}. Tekort: €${Math.round(card.cost-cash).toLocaleString('nl-NL')}. Overweeg een schuld af te lossen voor je cash vrijmaakt.`,
+          luc:  `Nu passen is geen falen. Spaar nog ${Math.ceil((card.cost-cash)/(Math.max(cf,1)))} beurten en je hebt genoeg. Goed dingen vergen geduld.`,
+          enzo: `Te weinig cash. Passen en snel opbouwen. Zodra je in de Fast Track zit gaan de kansen 10x groter worden.`,
+        };
+        return tips[coach.style] || tips.daan;
+      }
+
+      if (coverage < 25) {
+        // Eerste investering
+        const tips = {
+          direct:     `Dit is je kans. Koop het. Je hebt nu ${coverage}% van je uitgaven gedekt met passief inkomen — elke bezitting die je koopt brengt je dichter bij vrijheid.`,
+          analytical: `Coverage: ${coverage}%. Na aankoop: ~${Math.round(((passive + (card.cashflow||0)) / expenses) * 100)}%. ROI rechtvaardigt de investering. Kopen.`,
+          builder:    `Eerste bezitting is de moeilijkste. Als je hem eenmaal hebt, bouw je op een fundament. Neem hem.`,
+          aggressive: `Kopen. Nu. Elke beurt zonder bezitting is een beurt die je niet terugkrijgt.`,
+        };
+        return tips[coach.style] || tips.direct;
+      }
+
+      if (coverage >= 60) {
+        // Bijna vrij
+        const gap = expenses - passive;
+        const tips = {
+          direct:     `Je zit op ${coverage}%. Nog €${Math.round(gap).toLocaleString('nl-NL')}/mnd te gaan. Als deze investering ${card.cashflow >= gap ? 'je er overheen tilt — kopen zonder nadenken' : 'bijdraagt — overweeg het serieus'}.`,
+          analytical: `${coverage}% dekking. Gap: ${Math.round(gap).toLocaleString('nl-NL')}/mnd. Deze kaart levert ${card.cashflow || 0}/mnd. ${card.cashflow >= gap ? '✅ Dit maakt je vrij.' : `Nog ${Math.ceil(gap/(card.cashflow||1))} van dit nodig.`}`,
+          builder:    `Je bent bijna thuis. Dit is niet het moment om te aarzelen. Elke investering nu versnelt je pad naar vrijheid.`,
+          aggressive: `${coverage}%! Je bent zo goed als vrij. GAS EROP.`,
+        };
+        return tips[coach.style] || tips.direct;
+      }
+
+      // Normale situatie
+      const tips = {
+        direct:     `${card.cashflow || 0}/mnd extra passief inkomen. Je zit nu op ${coverage}% vrijheid. Elke euro passief inkomen telt.`,
+        analytical: `Huidige dekking: ${coverage}%. Na investering: ~${Math.round(((passive+(card.cashflow||0))/expenses)*100)}%. Cash na aankoop: €${Math.round(cash-(card.cost||0)).toLocaleString('nl-NL')}.`,
+        builder:    `Diversifieer je portfolio. Meerdere kleine inkomstenstromen zijn stabieler dan één grote.`,
+        aggressive: `Pak het. Cash kun je herbouwen. Gemiste cashflow niet.`,
+      };
+      return tips[coach.style] || tips.direct;
+    }
+
+    // ── Tegenslag kaart ──────────────────────────────────────────────────────
+    if (isBad) {
+      if (cf < 0) {
+        const tips = {
+          direct:     `Negatieve cashflow én een tegenslag. Dit is het moment dat mensen opgeven. Doe het niet — focus op de volgende kans-vakje.`,
+          analytical: `Cashflow: ${Math.round(cf).toLocaleString('nl-NL')}/mnd. Dit verergert de situatie tijdelijk. Prioriteit: eerste bezitting zo snel mogelijk.`,
+          builder:    `Moeilijke momenten zijn onderdeel van het proces. Blijf gefocust op de langetermijn opbouw.`,
+          aggressive: `Pech. Maar pech is tijdelijk, passief inkomen is permanent. Ga door.`,
+        };
+        return tips[coach.style] || tips.direct;
+      }
+      const tips = {
+        direct:     `Tegenslag is onderdeel van het spel — net als in het echte leven. Je cashflow van ${Math.round(cf).toLocaleString('nl-NL')}/mnd absorbeert dit.`,
+        analytical: `Impact: eenmalige kosten. Cashflow ${Math.round(cf).toLocaleString('nl-NL')}/mnd blijft intact. Herstelperiode: ${Math.ceil((card.cost||0)/Math.max(cf,1))} beurten.`,
+        builder:    `Elke tegenslag maakt je portfolio weerbaarder. Bezittingen beschermen je op de lange termijn.`,
+        aggressive: `Opslorpen en doorgaan. Dit is kleingeld vergeleken met wat je gaat bouwen.`,
+      };
+      return tips[coach.style] || tips.direct;
+    }
+
+    return null;
+  }
+
+  // Publieke functie: geeft coach + advies voor een kaart
+  window.fxh_getCoachAdvice = function(player, card) {
+    try {
+      const coach  = _pickCoach(player, card);
+      const advice = _getAdvice(player, card, coach);
+      if (!advice) return null;
+      return { coach, advice };
+    } catch(e) { return null; }
+  };
+
+}());
 
 // ════════════════════════════════════════════════════════════════════════════
 // FXH — Targeted name fix: message-bar and name inputs only.
