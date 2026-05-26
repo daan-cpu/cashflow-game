@@ -894,23 +894,23 @@ const TRANSLATIONS = {
     'deal.good':  '✅ Solid',
     'deal.fair':  '〰 Fair',
     'deal.weak':  '⚠️ Weak',
-    'ob.btn.results': 'See My Results →',
-    'ob.btn.to.mode': '← Mode',
-    'sp.btn.to.mode': '← Choose Mode',
-    'email.title.win':       'Save your score',
-    'email.title.loss':      'Save your result',
-    'email.title.mp':        'Save your score',
+    'ob.btn.results': 'Mijn resultaten →',
+    'ob.btn.to.mode': '← Modus',
+    'sp.btn.to.mode': '← Modus kiezen',
+    'email.title.win':       'Sla je score op',
+    'email.title.loss':      'Sla je resultaat op',
+    'email.title.mp':        'Sla je score op',
     'email.sub.win':         'Get new challenges and updates when a leaderboard goes live.',
     'email.sub.loss':        'Get strategy tips and learn how to escape faster next time.',
     'email.sub.mp':          'Save your score and compare your result with other players later.',
-    'email.placeholder':     'your@email.com',
-    'email.btn.submit':      'Save score',
-    'email.btn.submitting':  'Saving...',
-    'email.btn.skip':        'Skip',
-    'email.success.title':   'Score saved.',
+    'email.placeholder':     'jouw@emailadres.nl',
+    'email.btn.submit':      'Score opslaan',
+    'email.btn.submitting':  'Bezig...',
+    'email.btn.skip':        'Skip (Overslaan)',
+    'email.success.title':   'Score opgeslagen.',
     'email.success.sub':     'Check your inbox for tips and updates.',
     'email.success.cta':     'Want to learn how to do this better in real life?',
-    'email.success.btn':     'Go to FXminds Skool',
+    'email.success.btn':     'Ga naar FXminds Skool',
     'email.err.invalid':     'Please enter a valid email address.',
     'email.err.region':      'This feature is currently only available for the Netherlands and Belgium.',
     'email.err.generic':     'Something went wrong. Please try again.',
@@ -1133,6 +1133,9 @@ class PlayerState {
     // History for the log
     this.log = [];
 
+    // Passive income snapshots per payday — used for end-screen progress graph
+    this.passiveHistory = [];  // [{ payday: n, passive: number, turns: number }]
+
     // Investor progression
     this.xp    = 0;
     this.level = 1;
@@ -1191,8 +1194,13 @@ class PlayerState {
   }
 
   addAsset(asset) {
+    const isFirst = this.assets.length === 0;
     this.assets.push({ ...asset, id: asset.id || `asset_${Date.now()}` });
-    this.addLog(t('log.acquired',{name:asset.name,cf:cpm(asset.cashflow)}));
+    if (isFirst) {
+      this.addLog('🎉 ' + t('log.acquired',{name:asset.name,cf:cpm(asset.cashflow)}) + ' — je eerste passieve inkomstenstroom!');
+    } else {
+      this.addLog(t('log.acquired',{name:asset.name,cf:cpm(asset.cashflow)}));
+    }
     return this;
   }
 
@@ -1225,6 +1233,10 @@ class PlayerState {
     this.cash += flow;
     this.paydays++;
     this.addLog(t('log.payday',{flow:c(flow,true)}));
+    // Snapshot passive income for end-screen progress graph
+    if (!this.passiveHistory) this.passiveHistory = [];
+    this.passiveHistory.push({ payday: this.paydays, passive: this.passiveIncome, turns: this.turnsPlayed });
+    if (this.passiveHistory.length > 40) this.passiveHistory.shift(); // cap at 40
     return this;
   }
 
@@ -1252,6 +1264,7 @@ class PlayerState {
       passiveIncome: this.passiveIncome,
       monthlyCashflow: this.monthlyCashflow,
       netWorth: this.netWorth,
+    passiveHistory: this.passiveHistory || [],
       _bankrupt: this._bankrupt || false,
     };
   }
@@ -1582,7 +1595,7 @@ const opportunityCards = [
         }
       },
       {
-        label: 'Invest $5,000',
+        label: 'Investeer €5.000',
         condition: (player) => player.cash >= 5000,
         effect: (player) => {
           player.addCash(-5000, '(index fund)');
@@ -1655,7 +1668,7 @@ const opportunityCards = [
         effect: (player) => {
           player.addCash(-6000, '(laundromat down payment)');
           player.addAsset({ id: 'laundromat', name: t('asset.laundromat'), cost: 6000, cashflow: 500, type: 'business', description: 'Near campus, owner-financed' });
-          player.addDebt({ id: 'laundromat_loan', name: 'Laundromat Loan', amount: 24000, monthlyPayment: 180, description: 'Owner financing at 6%' });
+          player.addDebt({ id: 'laundromat_loan', name: 'Wasserettelening', amount: 24000, monthlyPayment: 180, description: 'Owner financing at 6%' });
         }
       },
       { label: t('card.pass'), effect: () => {} }
@@ -1903,7 +1916,7 @@ const badEventCards = [
       {
         label: t('bad.er.plan'),
         effect: (player) => {
-          player.addDebt({ id: `med_${Date.now()}`, name: 'Hospital Bill', amount: 3500, monthlyPayment: 140, description: 'ER visit — payment plan' });
+          player.addDebt({ id: `med_${Date.now()}`, name: 'Ziekenhuisrekening', amount: 3500, monthlyPayment: 140, description: 'ER visit — payment plan' });
           player.addLog(t('log.med.plan'));
         }
       }
@@ -1926,7 +1939,7 @@ const badEventCards = [
       {
         label: t('bad.surgery.card'),
         effect: (player) => {
-          player.addDebt({ id: `surgery_${Date.now()}`, name: 'Medical Credit Card', amount: 5500, monthlyPayment: 220, description: 'Surgery — financed at 18% APR' });
+          player.addDebt({ id: `surgery_${Date.now()}`, name: 'Medische Creditcard', amount: 5500, monthlyPayment: 220, description: 'Surgery — financed at 18% APR' });
           player.addLog(t('log.surgery.card'));
         }
       }
@@ -2015,7 +2028,7 @@ const badEventCards = [
       {
         label: t('bad.taxbill.plan'),
         effect: (player) => {
-          player.addDebt({ id: `irs_${Date.now()}`, name: 'IRS Installment Plan', amount: 2400, monthlyPayment: 100, description: 'Back taxes + penalties' });
+          player.addDebt({ id: `irs_${Date.now()}`, name: 'Belastingdienst Betalingsplan', amount: 2400, monthlyPayment: 100, description: 'Back taxes + penalties' });
           player.addLog(t('log.tax.plan'));
         }
       }
@@ -2052,7 +2065,7 @@ const badEventCards = [
       {
         label: t('bad.audit.plan'),
         effect: (player) => {
-          player.addDebt({ id: `audit_${Date.now()}`, name: 'Audit Payment Plan', amount: 3800, monthlyPayment: 160, description: 'IRS audit — taxes + penalties' });
+          player.addDebt({ id: `audit_${Date.now()}`, name: 'Controle Betalingsplan', amount: 3800, monthlyPayment: 160, description: 'IRS audit — taxes + penalties' });
         }
       }
     ]
@@ -2140,7 +2153,7 @@ const badEventCards = [
       {
         label: t('bad.storm.loan'),
         effect: (player) => {
-          player.addDebt({ id: `home_eq_${Date.now()}`, name: 'Home Equity Loan', amount: 2500, monthlyPayment: 120, description: 'Storm repair financing' });
+          player.addDebt({ id: `home_eq_${Date.now()}`, name: 'Overwaarde Lening', amount: 2500, monthlyPayment: 120, description: 'Storm repair financing' });
         }
       }
     ]
@@ -2212,7 +2225,7 @@ const badEventCards = [
       {
         label: t('bad.lawsuit.plan'),
         effect: (player) => {
-          player.addDebt({ id: `lawsuit_${Date.now()}`, name: 'Lawsuit Settlement', amount: 4200, monthlyPayment: 180, description: 'Slip & fall settlement' });
+          player.addDebt({ id: `lawsuit_${Date.now()}`, name: 'Rechtszaak Schikking', amount: 4200, monthlyPayment: 180, description: 'Slip & fall settlement' });
         }
       }
     ]
@@ -2546,20 +2559,20 @@ const fastTrackCards = [
           else p.addLog(t('log.ft.me.none')); }},
       { label:t('card.pass'), effect:(p)=>p.addLog(t('log.ft.me.pass')) }
     ]},
-  { id:'ft_ps', type:'fast_track', title:'Portfolio Scaling', icon:'📈',
-    description:'You\'ve built cashflow. Now use it as fuel. Reinvest systematically and let compounding do the heavy lifting.',
+  { id:'ft_ps', type:'fast_track', title:'Portefeuille Opschalen', icon:'📈',
+    description:'Je cashflow werkt. Gebruik het als brandstof. Herbeleg systematisch en laat rente-op-rente het zware werk doen.',
     choices:[
-      { label:'Scale portfolio ($8,000)', condition:(p)=>p.cash>=8000,
+      { label:'Portefeuille opschalen (€8.000)', condition:(p)=>p.cash>=8000,
         effect:(p)=>{ p.addCash(-8000,'(portfolio scaling)');
           const m=Math.floor(Math.random()*600)+500;
           p.addAsset({id:`port_${Date.now()}`,name:'Opgeschaalde Portefeuille',cost:8000,cashflow:m,type:'investment'});
           p.addLog(t('log.ft.pf.result',{amt:cpm(m)})); }},
       { label:t('card.pass'), effect:(p)=>p.addLog(t('log.ft.pf.pass')) }
     ]},
-  { id:'ft_ai', type:'fast_track', title:'Algorithmic Investing', icon:'⚙️',
-    description:'The best investors aren\'t smarter — they\'ve removed the human in the loop. Rules scale. Gut instinct doesn\'t.',
+  { id:'ft_ai', type:'fast_track', title:'Algoritmisch Beleggen', icon:'⚙️',
+    description:'De beste beleggers zijn niet slimmer — ze hebben de menselijke emotie uit het proces gehaald. Regels schalen. Onderbuikgevoel niet.',
     choices:[
-      { label:'Implement system ($4,000)', condition:(p)=>p.cash>=4000,
+      { label:'Systeem implementeren (€4.000)', condition:(p)=>p.cash>=4000,
         effect:(p)=>{ p.addCash(-4000,'(algo investing)');
           const m=Math.floor(Math.random()*350)+250;
           p.addAsset({id:`algo_${Date.now()}`,name:'Algoritmisch Systeem',cost:4000,cashflow:m,type:'skill'});
@@ -3059,6 +3072,13 @@ class GameEngine {
     if (passivePart > 0) {
       breakdownMsg += ` (salaris ${c(salaryPart)} + passief ${c(passivePart)} − lasten ${c(expPart)})`;
     }
+    // Goal context: how far from freedom?
+    const gapToFreedom = (player.expenses || 0) - passivePart;
+    if (gapToFreedom > 0) {
+      breakdownMsg += ` · 🎯 nog ${c(gapToFreedom)}/mnd nodig`;
+    } else if (passivePart > 0) {
+      breakdownMsg += ' · 🏆 Passief inkomen dekt je uitgaven!';
+    }
 
     this.state.setPhase(GamePhase.PAYDAY);
     this.state.setMessage(breakdownMsg);
@@ -3139,11 +3159,29 @@ class GameEngine {
     const hasDebts  = player.debts.length > 0;
     const hasAssets = player.assets.length > 0;
 
-    // Build options — always include at least "save" so player is never stuck
+    // Build options with financial impact shown upfront
     const options = [];
-    if (hasDebts)  options.push({ id: 'pay_debt',   label: t('choice.pay_debt'),   desc: t('choice.pay_debt.desc') });
-    if (hasAssets) options.push({ id: 'sell_asset', label: t('choice.sell_asset'), desc: t('choice.sell_asset.desc') });
-    options.push(              { id: 'save',        label: t('choice.save'),       desc: t('choice.save.desc') });
+    if (hasDebts) {
+      const topDebt    = player.debts.slice().sort((a,b) => b.monthlyPayment - a.monthlyPayment)[0];
+      const canAfford  = player.cash >= (topDebt?.amount || Infinity);
+      const impactDesc = topDebt
+        ? (canAfford
+            ? t('choice.pay_debt.desc') + ` — bevrijdt +${cpm(topDebt.monthlyPayment)}/mnd cashflow`
+            : t('choice.pay_debt.desc') + ` — nog ${c(topDebt.amount - player.cash)} tekort`)
+        : t('choice.pay_debt.desc');
+      options.push({ id: 'pay_debt', label: t('choice.pay_debt'), desc: impactDesc, locked: !canAfford });
+    }
+    if (hasAssets) {
+      const topAsset = player.assets.slice().sort((a,b) => b.cost - a.cost)[0];
+      const sellDesc = topAsset
+        ? t('choice.sell_asset.desc') + ` — ontvangt ${c(topAsset.cost)} cash, verliest ${cpm(topAsset.cashflow||0)}/mnd`
+        : t('choice.sell_asset.desc');
+      options.push({ id: 'sell_asset', label: t('choice.sell_asset'), desc: sellDesc });
+    }
+    // Save: show how much cashflow changes next payday
+    const nextCashflow = player.monthlyCashflow;
+    const saveDesc = t('choice.save.desc') + ` — volgende payday: ${c(nextCashflow, true)}`;
+    options.push({ id: 'save', label: t('choice.save'), desc: saveDesc });
 
     this.onMessage({ type: 'CHOICE', options });
   }
@@ -3339,6 +3377,27 @@ class GameEngine {
         this.onGameOver({ winner: null, reason: 'BANKRUPT', bankruptCause, player: player.toJSON() });
       }
     }
+  }
+
+  resolveRescue(action, assetId) {
+    const player = this.state.activePlayer;
+    if (action === 'sell' && assetId) {
+      const asset = player.assets.find(a => a.id === assetId);
+      if (asset) {
+        player.addCash(asset.cost, '(noodverkoop: '+asset.name+')');
+        player.removeAsset(asset.id);
+        player.addLog('🆘 Noodverkoop: '+asset.name+' — ternauwernood gered.');
+        this.state.setPhase(GamePhase.ROLLING);
+        this.state.setMessage('💪 Ternauwernood ontsnapt! Gooi opnieuw.');
+        this._emit();
+        return;
+      }
+    }
+    const cf = player.monthlyCashflow;
+    const stuck = cf < -50 && player.assets.length === 0 && player.cash < 800;
+    this.state.setPhase(GamePhase.GAME_OVER);
+    this.state.setMessage(t('msg.bankrupt.stuck'));
+    this.onGameOver({ winner: null, reason: 'BANKRUPT', bankruptCause: stuck ? 'STUCK' : 'CASH_FLOOR', player: player.toJSON() });
   }
 
   enterFastTrack() {
@@ -3692,7 +3751,7 @@ function _buildBankruptCauses(p, bankruptCause) {
   const causes  = [];
 
   if (assets.length === 0)
-    causes.push({ icon: '📉', text: 'Zero assets — no passive income was ever built. Every month you relied 100% on active income to survive.' });
+    causes.push({ icon: '📉', text: 'Geen bezittingen — er is nooit passief inkomen opgebouwd. Elke maand leunde je volledig op je salaris. Zonder bezittingen is ontsnappen onmogelijked 100% on active income to survive.' });
   if (debtDrag > 0 && debtDrag > p.income * 0.25)
     causes.push({ icon: '💳', text: t('loss.cause.debt_drag',{drag:cpm(debtDrag),pct:Math.round(debtDrag/p.income*100)}) });
   if (cf < -200)
@@ -4335,6 +4394,18 @@ class UIController {
             <span>${t('card.preview.roi')}</span>
             <strong>${roi}%</strong>
           </div>` : ''}
+          ${(() => {
+            try {
+              const st2 = window._game?.engine?.getState?.();
+              const p2  = st2?.activePlayer;
+              if (!p2 || !p2.debts?.length) return '';
+              const drag = p2.debts.reduce((s,d) => s + (d.monthlyPayment||0), 0);
+              const pct  = Math.round((drag / p2.income) * 100);
+              if (pct < 25) return '';
+              const cls  = pct >= 40 ? 'negative' : 'warn-text';
+              return `<div class="preview-row"><span>⚠️ Schulden vs salaris</span><strong class="${cls}">${pct}% van je salaris</strong></div>`;
+            } catch(_) { return ''; }
+          })()}
         </div>
       `;
     }
@@ -4371,7 +4442,14 @@ class UIController {
                 const p  = st?.activePlayer;
                 const cur = p?.passiveIncome || 0;
                 const pct = cur > 0 ? Math.round((card.cashflow/cur)*100) : null;
-                return `<div class="card-cf-delta">passief inkomen: ${c(cur)} → <strong class="positive">${c(cur+card.cashflow)}</strong>${pct?` (+${pct}%)`:''}${p&&p.expenses?(` | dekking: ${Math.round(((cur+card.cashflow)/p.expenses)*100)}%`):''}</div>`;
+                const newPassive = cur + card.cashflow;
+                const coverage   = p && p.expenses ? Math.round((newPassive / p.expenses) * 100) : null;
+                const gap        = p && p.expenses ? p.expenses - newPassive : null;
+                const howMany    = (gap > 0 && card.cashflow > 0) ? Math.ceil(gap / card.cashflow) : 0;
+                const freedomHint = howMany > 0
+                  ? ` · nog ~${howMany} zoals dit om vrij te zijn`
+                  : (gap !== null && gap <= 0 ? ' · 🏆 dit maakt je vrij!' : '');
+                return `<div class="card-cf-delta">passief: ${c(cur)} → <strong class="positive">${c(newPassive)}</strong>${coverage!==null?` | dekking: ${coverage}%`:''}${freedomHint}</div>`;
               })() : ''}
             </div>
             ${previewHtml}
@@ -4400,6 +4478,38 @@ class UIController {
       this.cardModal.classList.add('hidden');
       this.cardModal.innerHTML = '';
     }
+  }
+
+  _showRescueModal({ asset, player }) {
+    if (!this.cardModal) return;
+    this.cardModal.innerHTML = `
+      <div class="card-overlay">
+        <div class="card-panel card-bad" style="border:1px solid var(--red)">
+          <div class="card-band" style="background:var(--red)"></div>
+          <div class="card-header">
+            <span class="card-type-badge" style="background:rgba(244,63,94,.15);color:var(--red)">⚠️ Noodsituatie</span>
+            <h2 class="card-title">Dreig failliet te gaan</h2>
+          </div>
+          <div class="card-body">
+            <p class="card-description">Cash te laag om te overleven. Je kunt <strong>${asset.name}</strong> noodverkopen voor <strong style="color:var(--green)">${c(asset.cost)}</strong> — maar verliest <strong style="color:var(--red)">${cpm(asset.cashflow||0)}/mnd</strong> passief inkomen.</p>
+            <p style="margin-top:8px;font-size:12px;color:var(--muted)">Dit is je enige reddingskans. Zonder actie is het spel voorbij.</p>
+          </div>
+          <div class="card-choices">
+            <button class="choice-btn" id="rescue-sell">🔴 Verkoop ${asset.name} — ontvang ${c(asset.cost)}</button>
+            <button class="choice-btn" id="rescue-accept" style="opacity:.6">💀 Accepteer faillissement</button>
+          </div>
+        </div>
+      </div>
+    `;
+    this.cardModal.classList.remove('hidden');
+    document.getElementById('rescue-sell')?.addEventListener('click', () => {
+      this.hideCard();
+      this.engine.resolveRescue('sell', asset.id);
+    });
+    document.getElementById('rescue-accept')?.addEventListener('click', () => {
+      this.hideCard();
+      this.engine.resolveRescue('accept', null);
+    });
   }
 
   _showFastTrackCard(card, choices) {
@@ -4837,8 +4947,19 @@ class UIController {
     el.classList.remove('hidden');
     const pi = state.activePlayerIndex;
     const c  = `var(--pt${pi % 6})`;
-    if (dot)  { dot.style.background = c; dot.style.boxShadow = `0 0 6px ${c}`; }
-    if (name) name.textContent = state.activePlayer?.name || `Player ${pi+1}`;
+    if (dot)  { dot.style.background = c; dot.style.boxShadow = `0 0 8px ${c}, 0 0 0 3px ${c}`; }
+    if (name) {
+      name.textContent = `${state.activePlayer?.name || `Speler ${pi+1}`} — aan de beurt`;
+      name.style.color = c;
+      // Pulse the roll button with player colour so it's crystal clear whose turn it is
+      if (state.phase === 'ROLLING') {
+        const rb = document.getElementById('btn-roll');
+        if (rb) {
+          rb.style.transition = 'box-shadow .4s ease';
+          rb.style.boxShadow  = `0 0 0 3px ${c}, 0 0 16px ${c}44`;
+        }
+      }
+    }
   }
 
   // ── Roll Button ────────────────────────────────────────────────────────────
@@ -5061,6 +5182,39 @@ class UIController {
           }
         </div>
 
+        ${(() => {
+          // ── Passive income progress graph ─────────────────────────────────
+          const hist = subject.passiveHistory || [];
+          if (hist.length < 2) return '';
+          const maxP  = Math.max(...hist.map(h => h.passive), expenses, 1);
+          const W = 100; // viewBox width in percent units
+          const pts = hist.map((h, i) => {
+            const x = (i / (hist.length - 1)) * 96 + 2;
+            const y = 88 - (h.passive / maxP) * 76;
+            return `${x},${y}`;
+          }).join(' ');
+          const expY   = 88 - (expenses / maxP) * 76;
+          const wonIdx = hist.findIndex(h => h.passive >= expenses);
+          const wonPt  = wonIdx >= 0
+            ? `<circle cx="${(wonIdx/(hist.length-1))*96+2}" cy="${88-(hist[wonIdx].passive/maxP)*76}" r="3" fill="#00c896" stroke="#fff" stroke-width="1"><title>Ontsnapt! Beurt ${hist[wonIdx].turns}</title></circle>`
+            : '';
+          return `
+          <div class="eos-graph-section">
+            <div class="eos-graph-label">📈 Passief inkomen over de tijd</div>
+            <svg class="eos-graph" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <!-- Expense line -->
+              <line x1="0" y1="${expY}" x2="100" y2="${expY}" stroke="rgba(244,63,94,.5)" stroke-width="0.6" stroke-dasharray="2,1"/>
+              <text x="1" y="${expY - 1.5}" font-size="4" fill="rgba(244,63,94,.8)">Uitgaven</text>
+              <!-- Area fill -->
+              <polygon points="2,88 ${pts} ${(hist.length-1)/(hist.length-1)*96+2},88" fill="rgba(0,200,150,.12)"/>
+              <!-- Line -->
+              <polyline points="${pts}" fill="none" stroke="#00c896" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              ${wonPt}
+            </svg>
+            <div class="eos-graph-legend"><span style="color:#00c896">— passief inkomen</span> &nbsp; <span style="color:rgba(244,63,94,.8)">– – uitgaven</span></div>
+          </div>`;
+        })()}
+
         ${isWin ? `
         <div class="eos-ft-cta">
           <p>${t('eos.ft.cta.body')}</p>
@@ -5100,6 +5254,11 @@ class UIController {
         })}
         <div class="eos-brand">Powered by <span>FXminds Academy</span></div>
         ${this._buildViralShare(isWin ? passive : null, isWin ? 'win' : 'loss', turns, prog)}
+        <div class="eos-whatif">
+          <button class="eos-whatif-btn" onclick="window.open('https://www.fxminds.nl/skool','_blank')">
+            💭 Wat als je deze keuzes in het echt had gemaakt? Leer het via FXminds →
+          </button>
+        </div>
         <button id="btn-play-again" class="btn-primary" style="margin-top:0">${t('eos.replay')}</button>
       </div>
     `;
@@ -5360,7 +5519,7 @@ function buildSituationProfile(ans) {
       description: 'Credit card / small personal loan' });
   } else if (debtAns === 'moderate') {
     // Moderate: two debts — credit card + personal loan, $200/mo combined drag
-    debts.push({ id: 'sit_cc',   name: 'Credit Card',    amount: 6000,  monthlyPayment: 120,
+    debts.push({ id: 'sit_cc',   name: 'Creditcard',    amount: 6000,  monthlyPayment: 120,
       description: 'Credit card balance' });
     debts.push({ id: 'sit_loan', name: 'Personal Loan',  amount: 14000, monthlyPayment:  80,
       description: 'Personal / car loan' });
@@ -5368,7 +5527,7 @@ function buildSituationProfile(ans) {
     // Heavy: student / big loan, $300–400/mo drag, substantial balance
     const loanAmount = Math.round(income * 6);   // ~6× monthly income
     const loanPmt    = Math.round(income * 0.08);
-    debts.push({ id: 'sit_cc',    name: 'Credit Card',   amount: 5000,       monthlyPayment: 100,
+    debts.push({ id: 'sit_cc',    name: 'Creditcard',   amount: 5000,       monthlyPayment: 100,
       description: 'Credit card balance' });
     debts.push({ id: 'sit_study', name: t('debt.student_loan'),  amount: loanAmount, monthlyPayment: loanPmt,
       description: 'Student / large personal loan' });
@@ -6218,9 +6377,11 @@ const engine = new GameEngine({
     ui.showCard({ card, choices, preview });
   },
 
-  onMessage({ type, options, text }) {
+  onMessage({ type, options, text, asset, player: rescuePlayer }) {
     if (type === 'CHOICE') {
       ui.showChoiceModal({ options });
+    } else if (type === 'RESCUE') {
+      ui._showRescueModal({ asset, player: rescuePlayer });
     } else if (type === 'ERROR') {
       ui._renderMessage(`⚠️ ${text}`);
     }
@@ -8690,7 +8851,7 @@ const PROGRESSION_TIERS = [
   },
   {
     id:        'investor',
-    label:     'Investor',
+    label:     'Investeerder',
     icon:      '📈',
     color:     'tier-investor',
     condition: (p, state) => state.fastTrack && (p.passiveIncome||0) >= 10000 && (p.netWorth||0) < 500000,
@@ -8710,7 +8871,7 @@ const PROGRESSION_TIERS = [
   },
   {
     id:        'legend',
-    label:     'Legend',
+    label:     'Legende',
     icon:      '🦅',
     color:     'tier-legend',
     condition: (p, state) => (p.netWorth||0) >= 1000000,
