@@ -3,6 +3,54 @@
  * Main game script
  */
 
+// ════════════════════════════════════════════════════════════════════════════
+// GLOBAL CONFIG — single source of truth for all tunable constants
+// ════════════════════════════════════════════════════════════════════════════
+
+const FX_CONFIG = Object.freeze({
+  AUTOSAVE_EVERY:      3,     // turns between autosaves
+  SAVE_VERSION:        2,     // bump when snapshot schema changes
+  LEAD_POPUP_TURN:     10,    // show lead popup after N turns
+  DISMISS_FALLBACK_MS: 500,   // _dismiss animationend safety timeout (ms)
+  MAX_TELEMETRY_QUEUE: 30,    // flush telemetry after N events
+  TELEMETRY_BATCH_MS:  4000,  // flush telemetry every N ms
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GLOBAL ERROR HANDLERS — log all unhandled errors without crashing the UI
+// ════════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('error', (ev) => {
+  console.error('[FXminds] Uncaught error:', ev.message,
+    '\n  at', ev.filename + ':' + ev.lineno + ':' + ev.colno);
+  // Do not re-throw — the player should never see a white screen.
+});
+
+window.addEventListener('unhandledrejection', (ev) => {
+  console.error('[FXminds] Unhandled promise rejection:', ev.reason);
+  ev.preventDefault(); // suppress noisy browser default message
+});
+
+// Suppress html2canvas internal crash ("aa.dispatchEvent is not a function").
+// html2canvas clones DOM nodes and fires synthetic events on them; broken
+// prototype chains on SVG/shadow-DOM elements cause dispatchEvent to throw.
+// This never affects game logic — intercept in capture phase before it
+// can propagate and kill async handlers like _bindLeadSubmit.
+(function _suppressHtml2canvasErrors() {
+  window.addEventListener('error', (ev) => {
+    const msg  = (ev && ev.message) || '';
+    const file = (ev && ev.filename) || '';
+    const isH2C = file.includes('html2canvas') || file.includes('h2c');
+    const isDispatch = msg.includes('dispatchEvent') ||
+                       (msg.includes('is not a function') && isH2C);
+    if (isDispatch) {
+      console.warn('[FXminds] Suppressed html2canvas error:', msg);
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  }, true); // capture phase — fires before other handlers
+}());
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // i18n + Currency System — CashFlow Academy
@@ -149,7 +197,7 @@ const TRANSLATIONS = {
     'msg.debt.paid': '💳 {{debt}} afgelost! Gooi wanneer je klaar bent.',
     'msg.ft.active': '🚀 Fast Track actief! Trek nieuwe beleggingskaarten om kapitaal op te schalen.',
     'msg.ft.enter': '🚀 Fast Track',
-    'eos.win.title': 'Ontsnapping gelukt!', 'eos.loss.title': 'De Ratrace won',
+    'eos.win.title': 'Ontsnapping gelukt!', 'eos.loss.title': 'Je zit nog vast in de rat race',
     'eos.stat.passive': 'Maandelijks passief inkomen', 'eos.stat.expenses': 'Maandlasten', 'eos.stat.cf': 'Netto cashflow',
     'eos.stat.networth': 'Nettovermogen', 'eos.stat.cash': 'Beschikbaar geld', 'eos.stat.turns': 'Beurten gespeeld',
     'eos.assets.title': 'Bezittingen ({{n}})', 'eos.debts.title': 'Resterende schulden ({{n}})',
@@ -161,8 +209,11 @@ const TRANSLATIONS = {
     'eos.share.text': 'Turns: {{turns}} · Lv {{level}} · {{passive}}/mnd passief',
     'eos.share.copy': '📋 Kopiëren', 'eos.share.copied': '✓ Gekopieerd!',
     'eos.replay': 'Nog een keer spelen', 'eos.brand': 'Powered by FXminds Academy',
-    'eos.skool.title': 'Wil je dit in het echte leven beter aanpakken?',
-    'eos.skool.text': 'In FXminds Skool leer je hoe je cashflow opbouwt, schulden vermindert en financiële structuur creëert — zodat het spel geen simulatie meer is maar jouw realiteit wordt.',
+    'eos.email.skip': 'Sla over',
+    'eos.skool.title': 'Wil je dit in het echt doorbreken?',
+    'eos.skool.text': 'De meeste mensen blijven hier vastzitten. Met de juiste strategie kun je hier wél uit komen.',
+    'eos.skool.btn.primary': 'Zie hoe je dit écht oplost →',
+    'eos.skool.btn.secondary': 'Ontvang tips per mail',
     'eos.skool.btn': 'Word lid van FXminds Skool →',
     'win.line1.s': '{{n}} bezitting genereert {{passive}}/mnd — zonder dat jij een vinger uitsteekt. Dat is het hele punt.',
     'win.line1.p': '{{n}} bezittingen genereren {{passive}}/mnd — zonder dat jij een vinger uitsteekt. Dat is het hele punt.',
@@ -498,6 +549,24 @@ const TRANSLATIONS = {
     'email.err.region':      'Deze functie is momenteel alleen beschikbaar voor Nederland en België.',
     'email.err.generic':     'Iets ging mis. Probeer het opnieuw.',
     'accord.need_more':'Nog {{amt}} tekort',
+    // ── Expense reduction opportunities ───────────────────────────────────────
+    'exp.refi.title':        'Hypotheek herfinancieren',
+    'exp.refi.desc':         'Je hypotheekrente is hoger dan de huidige marktrente. Door te herfinancieren verlaag je je maandlasten.',
+    'exp.refi.do':           'Herfinancieren (€200/mnd besparing)',
+    'exp.refi.skip':         'Overslaan',
+    'exp.subs.title':        'Abonnementen opschonen',
+    'exp.subs.desc':         'Je betaalt voor 6 abonnementen die je nauwelijks gebruikt. Snij ze weg en houd de helft over.',
+    'exp.subs.do':           'Opschonen (€120/mnd besparing)',
+    'exp.subs.skip':         'Overslaan',
+    'exp.downsize.title':    'Lifestyle downsizen',
+    'exp.downsize.desc':     'Je leeft op een niveau dat je cashflow doodbloeit. Kleiner leven = meer vrijheid.',
+    'exp.downsize.do':       'Downsizen (€350/mnd besparing)',
+    'exp.downsize.skip':     'Overslaan — ik houd mijn levensstijl',
+    'exp.renegotiate.title': 'Verzekering heronderhandelen',
+    'exp.renegotiate.desc':  'Je verzekeraar rekent je al drie jaar teveel. Eén telefoontje kan €80/mnd schelen.',
+    'exp.renegotiate.do':    'Heronderhandelen (€80/mnd besparing)',
+    'exp.renegotiate.skip':  'Overslaan',
+    'log.exp.reduced':       '✂️ Maandlasten verlaagd met {{amt}}/mnd',
   },
 
   en: {
@@ -856,11 +925,20 @@ function t(key, vars) {
   if (vars) for (const [k,v] of Object.entries(vars)) str = str.split('{{'+k+'}}').join(v==null?'':v);
   return str;
 }
+// ── safeNum: coerce any value to a finite number with a safe default ─────────
+// Use everywhere a financial value could be undefined, null, NaN, or Infinity.
+function safeNum(n, fallback) {
+  if (fallback === undefined) fallback = 0;
+  const v = Number(n);
+  return (Number.isFinite(v) ? v : fallback);
+}
+
 function c(n, signed) {
   const sym = t('currency.symbol'), sep = t('currency.sep');
-  const abs = Math.abs(Math.round(n));
+  const safe = safeNum(n);                               // NaN/undefined → 0
+  const abs = Math.abs(Math.round(safe));
   const fmt = abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
-  const sign = signed ? (n >= 0 ? '+' : '-') : (n < 0 ? '-' : '');
+  const sign = signed ? (safe >= 0 ? '+' : '-') : (safe < 0 ? '-' : '');
   return sign + sym + fmt;
 }
 function cpm(n, signed) { return c(n, signed) + t('currency.pm'); }
@@ -1038,10 +1116,10 @@ class PlayerState {
     this.name       = name;
     this.profession = profession;
 
-    // Core financials
-    this.cash     = GameConfig.STARTING_CASH;
-    this.income   = GameConfig.STARTING_INCOME;
-    this.expenses = GameConfig.STARTING_EXPENSES;
+    // Core financials — safeNum ensures NaN can never enter the state
+    this.cash     = safeNum(GameConfig.STARTING_CASH,     5000);
+    this.income   = safeNum(GameConfig.STARTING_INCOME,   3500);
+    this.expenses = safeNum(GameConfig.STARTING_EXPENSES, 2800);
 
     // Portfolios — source of truth for passive income & debts
     this.assets = [];   // [{ id, name, cost, cashflow, type, description }]
@@ -1423,7 +1501,7 @@ const opportunityCards = [
           player.addAsset({ id: `stock_div_${Date.now()}`, name: t('asset.dividend'), cost: 5000, cashflow: 290, type: 'stocks', description: 'Utility stocks, 7% yield' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1443,7 +1521,7 @@ const opportunityCards = [
           player.addAsset({ id: 'vending_route', name: t('asset.vending'), cost: 3500, cashflow: 220, type: 'business', description: '4-machine route, offices' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1463,7 +1541,7 @@ const opportunityCards = [
           player.addAsset({ id: 'mortgage_note', name: t('asset.privnote'), cost: 10000, cashflow: 600, type: 'notes', description: 'Private lending, 7.2% return' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1483,7 +1561,7 @@ const opportunityCards = [
           player.addAsset({ id: 'car_wash', name: t('asset.carwash'), cost: 15000, cashflow: 900, type: 'business', description: 'Self-serve, minimal staff' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1511,7 +1589,7 @@ const opportunityCards = [
           player.addAsset({ id: `index_${Date.now()}`, name: t('asset.index'), cost: 5000, cashflow: 200, type: 'stocks', description: 'Broad market, ~4.8% yield' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1531,7 +1609,7 @@ const opportunityCards = [
           player.addAsset({ id: 'storage_units', name: t('asset.storage'), cost: 20000, cashflow: 1100, type: 'real_estate', description: '12 units, 88% occupancy' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1559,7 +1637,7 @@ const opportunityCards = [
           }
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1580,7 +1658,7 @@ const opportunityCards = [
           player.addDebt({ id: 'laundromat_loan', name: 'Laundromat Loan', amount: 24000, monthlyPayment: 180, description: 'Owner financing at 6%' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1601,7 +1679,7 @@ const opportunityCards = [
           player.addDebt({ id: 'duplex_mortgage', name: 'Duplex Mortgage', amount: 88000, monthlyPayment: 420, description: '30yr fixed mortgage' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1621,7 +1699,7 @@ const opportunityCards = [
           player.addAsset({ id: 'blog', name: t('asset.blog'), cost: 4500, cashflow: 300, type: 'digital', description: 'Affiliate + ads, ~$300/mo' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1641,7 +1719,7 @@ const opportunityCards = [
           player.addAsset({ id: 'parking_lot', name: t('asset.parking'), cost: 18000, cashflow: 950, type: 'real_estate', description: 'Downtown, near stadium' });
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1670,7 +1748,7 @@ const opportunityCards = [
           }
         }
       },
-      { label: 'Pass', effect: () => {} }
+      { label: t('card.pass'), effect: () => {} }
     ]
   },
 
@@ -1690,6 +1768,94 @@ const opportunityCards = [
         }
       },
       { label: t('opp.royalty.decline'), effect: () => {} }
+    ]
+  },
+
+  // ── Expense Reduction Opportunities ──────────────────────────────────────────
+  // Players can escape the rat race by REDUCING expenses, not only building income.
+  {
+    id: 'opp_refi_mortgage',
+    type: 'opportunity',
+    subtype: 'expense_reduction',
+    title: t('exp.refi.title'),
+    description: t('exp.refi.desc'),
+    cost: 1500,  // refinancing fee
+    cashflow: 0,
+    expenseReduction: 200,
+    choices: [
+      {
+        label: t('exp.refi.do'),
+        condition: (p) => p.cash >= 1500 && p.expenses >= 2000,
+        effect: (p) => {
+          p.addCash(-1500, '(herfinancieringskosten)');
+          p.expenses = safeNum(p.expenses - 200, 0);
+          p.addLog(t('log.exp.reduced', { amt: cpm(200) }));
+        }
+      },
+      { label: t('exp.refi.skip'), effect: () => {} }
+    ]
+  },
+  {
+    id: 'opp_cut_subscriptions',
+    type: 'opportunity',
+    subtype: 'expense_reduction',
+    title: t('exp.subs.title'),
+    description: t('exp.subs.desc'),
+    cost: 0,
+    cashflow: 0,
+    expenseReduction: 120,
+    choices: [
+      {
+        label: t('exp.subs.do'),
+        effect: (p) => {
+          p.expenses = safeNum(p.expenses - 120, 0);
+          p.addLog(t('log.exp.reduced', { amt: cpm(120) }));
+        }
+      },
+      { label: t('exp.subs.skip'), effect: () => {} }
+    ]
+  },
+  {
+    id: 'opp_downsize_lifestyle',
+    type: 'opportunity',
+    subtype: 'expense_reduction',
+    title: t('exp.downsize.title'),
+    description: t('exp.downsize.desc'),
+    cost: 0,
+    cashflow: 0,
+    expenseReduction: 350,
+    choices: [
+      {
+        label: t('exp.downsize.do'),
+        effect: (p) => {
+          p.expenses = safeNum(p.expenses - 350, 0);
+          p.addLog(t('log.exp.reduced', { amt: cpm(350) }));
+        }
+      },
+      {
+        label: t('exp.downsize.skip'),
+        effect: (p) => p.addLog('Lifestyle behouden. Uitgaven ongewijzigd.')
+      }
+    ]
+  },
+  {
+    id: 'opp_renegotiate_insurance',
+    type: 'opportunity',
+    subtype: 'expense_reduction',
+    title: t('exp.renegotiate.title'),
+    description: t('exp.renegotiate.desc'),
+    cost: 0,
+    cashflow: 0,
+    expenseReduction: 80,
+    choices: [
+      {
+        label: t('exp.renegotiate.do'),
+        effect: (p) => {
+          p.expenses = safeNum(p.expenses - 80, 0);
+          p.addLog(t('log.exp.reduced', { amt: cpm(80) }));
+        }
+      },
+      { label: t('exp.renegotiate.skip'), effect: () => {} }
     ]
   },
 
@@ -2614,59 +2780,66 @@ class GameEngine {
   // ── Setup ──────────────────────────────────────────────────────────────────
 
   startGame(playerConfig = {}) {
+    // ── Guard: prevent double-initialisation ─────────────────────────────────
+    // Multiple callers (skip button + failsafe) can fire within milliseconds.
+    // If the game is already running, do not re-init — just re-render.
+    if (this.state.gameStarted && this.state.players.length > 0) {
+      this._emit();  // re-broadcast current state to UI
+      return;
+    }
     // Per-profession starting profile: cash, income, expenses, and any starting debts.
     // Debts reflect realistic life situations for each career path.
     const professionProfiles = {
-      // Brief-spec starter profile (salary 3000, expenses 2500, cash 1000)
+      // Brief-spec starter profile — cash bumped so first kans (2000) reachable within 2 beurten
       'Starter': {
-        cash: 1000, income: 3000, expenses: 2500,
+        cash: 2500, income: 3000, expenses: 2500,
         debts: [],
       },
       'Software Engineer': {
-        cash: 5000, income: 3500, expenses: 2800,
+        cash: 6500, income: 3500, expenses: 2800,
         debts: [],
       },
       'Teacher': {
-        cash: 3500, income: 3000, expenses: 2200,
+        cash: 5000, income: 3000, expenses: 2200,
         debts: [
-          { id: 'student_loan', name: t('debt.student_loan'), amount: 18000, monthlyPayment: 120, description: 'Education debt' },
+          { id: 'student_loan', name: t('debt.student_loan'), amount: 18000, monthlyPayment: 120, description: 'Studieschuld' },
         ],
       },
       'Doctor': {
-        cash: 8000, income: 6000, expenses: 4800,
+        cash: 9500, income: 6000, expenses: 4800,
         debts: [
-          { id: 'med_school_loan', name: t('debt.med_school'), amount: 120000, monthlyPayment: 800, description: 'Professional school debt' },
+          { id: 'med_school_loan', name: t('debt.med_school'), amount: 120000, monthlyPayment: 800, description: 'Studielening geneeskunde' },
         ],
       },
       'Entrepreneur': {
-        cash: 4000, income: 4500, expenses: 3600,
+        cash: 5500, income: 4500, expenses: 3600,
         debts: [
-          { id: 'business_loan', name: t('debt.business_loan'), amount: 25000, monthlyPayment: 250, description: 'Small business loan' },
+          { id: 'business_loan', name: t('debt.business_loan'), amount: 25000, monthlyPayment: 250, description: 'Zakelijke lening' },
         ],
       },
-      // ── FXminds character profiles ──────────────────────────────────────────
+      // ── FXminds karakter profielen ──────────────────────────────────────────
       'Beginner Trader': {
-        cash: 2500, income: 2800, expenses: 2600,
+        cash: 4000, income: 2800, expenses: 2600,
         debts: [
-          { id: 'credit_card', name: 'Credit Card', amount: 4500, monthlyPayment: 90, description: 'Revolving consumer debt' },
+          { id: 'credit_card', name: 'Creditcard', amount: 4500, monthlyPayment: 90, description: 'Consumptieve schuld' },
         ],
       },
       'FXminds Student': {
-        cash: 3000, income: 3200, expenses: 2400,
+        cash: 4500, income: 3200, expenses: 2400,
         startingAssets: [
-          { id: 'fxm_course', name: 'FXminds Course Portfolio', cost: 1500, cashflow: 180, type: 'skill' },
+          { id: 'fxm_course', name: 'FXminds Cursusportfolio', cost: 1500, cashflow: 180, type: 'skill' },
         ],
         debts: [],
       },
       'Lifestyle Addict': {
-        cash: 1200, income: 5500, expenses: 5100,
+        cash: 2700, income: 5500, expenses: 5100,
         debts: [
-          { id: 'car_loan',  name: 'Luxury Car Loan',  amount: 32000, monthlyPayment: 480, description: 'Depreciating asset debt' },
-          { id: 'cc_debt',   name: 'Credit Card Debt', amount: 8500,  monthlyPayment: 170, description: 'Consumer debt' },
+          { id: 'car_loan',  name: 'Luxe Autolening',  amount: 32000, monthlyPayment: 480, description: 'Schuld op afschrijvend bezit' },
+          { id: 'cc_debt',   name: 'Creditcardschuld', amount: 8500,  monthlyPayment: 170, description: 'Consumptieve schuld' },
         ],
       },
       'The Grinder': {
-        cash: 6000, income: 4200, expenses: 2000,
+        cash: 7500, income: 4200, expenses: 2000,
         debts: [],
       },
     };
@@ -2682,10 +2855,10 @@ class GameEngine {
       profession: playerConfig.profession || 'Software Engineer',
     });
 
-    // Apply profession-specific financials
-    player.cash     = profile.cash;
-    player.income   = profile.income;
-    player.expenses = profile.expenses;
+    // Apply profession-specific financials (safeNum guards against undefined/NaN)
+    player.cash     = safeNum(profile.cash,     GameConfig.STARTING_CASH);
+    player.income   = safeNum(profile.income,   GameConfig.STARTING_INCOME);
+    player.expenses = safeNum(profile.expenses, GameConfig.STARTING_EXPENSES);
 
     // Apply starting debts silently (bypass addDebt's log so log starts clean)
     profile.debts.forEach(d => {
@@ -2714,6 +2887,9 @@ class GameEngine {
     }
     player.addLog(t('log.start.cf',{flow:c(cf,true)}));
 
+    // ── Reset player list before adding — prevents duplicate players on restart ──
+    this.state.players = [];
+    this.state.activePlayerIndex = 0;
     // Set game state
     this.state.addPlayer(player);
     this.state.buildBoard();
@@ -2730,21 +2906,23 @@ class GameEngine {
   startMultiplayerGame(playerConfigs = []) {
     if (playerConfigs.length < 2) { this.startGame(playerConfigs[0] || {}); return; }
     const PP = {
-      'Software Engineer': {cash:5000,income:3500,expenses:2800,debts:[]},
-      'Teacher':           {cash:3500,income:3000,expenses:2200,debts:[{id:'sl',name:'Student Loan',amount:18000,monthlyPayment:120}]},
-      'Doctor':            {cash:8000,income:6000,expenses:4800,debts:[{id:'med',name:'Medical School Loan',amount:120000,monthlyPayment:800}]},
-      'Entrepreneur':      {cash:4000,income:4500,expenses:3600,debts:[{id:'biz',name:'Business Startup Loan',amount:25000,monthlyPayment:250}]},
-      'Beginner Trader':   {cash:2500,income:2800,expenses:2600,debts:[{id:'cc',name:'Credit Card',amount:4500,monthlyPayment:90}]},
-      'FXminds Student':   {cash:3000,income:3200,expenses:2400,startingAssets:[{id:'fxm',name:'FXminds Course Portfolio',cost:1500,cashflow:180,type:'skill'}],debts:[]},
-      'Lifestyle Addict':  {cash:1200,income:5500,expenses:5100,debts:[{id:'car',name:'Luxury Car Loan',amount:32000,monthlyPayment:480},{id:'cc2',name:'Credit Card Debt',amount:8500,monthlyPayment:170}]},
-      'The Grinder':       {cash:6000,income:4200,expenses:2000,debts:[]},
+      'Software Engineer': {cash:6500,income:3500,expenses:2800,debts:[]},
+      'Teacher':           {cash:5000,income:3000,expenses:2200,debts:[{id:'sl',name:'Studieschuld',amount:18000,monthlyPayment:120}]},
+      'Doctor':            {cash:9500,income:6000,expenses:4800,debts:[{id:'med',name:'Studielening geneeskunde',amount:120000,monthlyPayment:800}]},
+      'Entrepreneur':      {cash:5500,income:4500,expenses:3600,debts:[{id:'biz',name:'Zakelijke lening',amount:25000,monthlyPayment:250}]},
+      'Beginner Trader':   {cash:4000,income:2800,expenses:2600,debts:[{id:'cc',name:'Creditcard',amount:4500,monthlyPayment:90}]},
+      'FXminds Student':   {cash:4500,income:3200,expenses:2400,startingAssets:[{id:'fxm',name:'FXminds Cursusportfolio',cost:1500,cashflow:180,type:'skill'}],debts:[]},
+      'Lifestyle Addict':  {cash:2700,income:5500,expenses:5100,debts:[{id:'car',name:'Luxe Autolening',amount:32000,monthlyPayment:480},{id:'cc2',name:'Creditcardschuld',amount:8500,monthlyPayment:170}]},
+      'The Grinder':       {cash:7500,income:4200,expenses:2000,debts:[]},
     };
     playerConfigs.forEach((cfg, i) => {
       const prof = cfg._customProfile
         ? {...cfg._customProfile, debts:cfg._customProfile.debts||[], startingAssets:cfg._customProfile.startingAssets||[]}
         : (PP[cfg.profession] || PP['Software Engineer']);
       const p = new PlayerState({ id:`player_${i+1}`, name:cfg.name||`Player ${i+1}`, profession:cfg.profession||'Software Engineer' });
-      p.cash = prof.cash; p.income = prof.income; p.expenses = prof.expenses;
+      p.cash     = safeNum(prof.cash,     GameConfig.STARTING_CASH);
+      p.income   = safeNum(prof.income,   GameConfig.STARTING_INCOME);
+      p.expenses = safeNum(prof.expenses, GameConfig.STARTING_EXPENSES);
       (prof.debts||[]).forEach(d => p.debts.push({...d, id:d.id+'_p'+(i+1)}));
       (prof.startingAssets||[]).forEach(a => p.assets.push({...a, id:a.id+'_p'+(i+1)}));
       p.turnsPlayed = 0;
@@ -2873,8 +3051,17 @@ class GameEngine {
     player.applyMonthlyPayday();
     const earned = player.cash - before;
 
+    // Build a breakdown so the player sees exactly what they earned this payday
+    const salaryPart  = player.income;
+    const passivePart = player.passiveIncome;
+    const expPart     = player.expenses + player.totalDebtPayments;
+    let breakdownMsg = t('msg.payday',{reason,earned:c(earned,true)});
+    if (passivePart > 0) {
+      breakdownMsg += ` (salaris ${c(salaryPart)} + passief ${c(passivePart)} − lasten ${c(expPart)})`;
+    }
+
     this.state.setPhase(GamePhase.PAYDAY);
-    this.state.setMessage(t('msg.payday',{reason,earned:c(earned,true)}));
+    this.state.setMessage(breakdownMsg);
 
     this.onPayday({
       player: player.toJSON(),
@@ -2985,7 +3172,7 @@ class GameEngine {
     }
 
     // XP + mentor: buying an asset
-    const isPass = result.message === 'Pass' || result.message === 'Decline' || result.message === t('card.pass');
+    const isPass = result.message === 'Pass' || result.message === 'Overslaan' || result.message === 'Decline' || result.message === t('card.pass');
     if (!isPass && player.passiveIncome > passiveBefore) {
       const xpR = XPEngine.award(player, XP_REASONS.BUY_ASSET, { cashflow: card.cashflow || 0 });
       if (xpR?.leveled) {
@@ -3543,6 +3730,194 @@ function _buildBankruptDebrief(p, bankruptCause) {
   return lines;
 }
 
+
+// ── YouTube content block for EOS screen ─────────────────────────────────────
+// Returns an HTML snippet with a relevant video link based on player outcome.
+// Videos are linked (not embedded) to keep the page fast on mobile.
+// ── FXminds YouTube video map ─────────────────────────────────────────────────
+// Each key maps to a player outcome. Fill in the correct video IDs from your
+// YouTube channel (youtube.com/watch?v=VIDEO_ID_HERE).
+//
+// How to find a video ID:
+//   Open the video on YouTube → copy the 11-character code after "v=" in the URL
+//   Example: youtube.com/watch?v=XXXXXXXXXXX  →  id: 'XXXXXXXXXXX'
+//
+// Outcome mapping:
+//   lost_no_assets  → player built zero passive income (absolute beginner)
+//   lost_negative   → player had some income but still lost (intermediate)
+//   close           → player reached 60 %+ of expenses as passive income (near win)
+//   won             → player escaped the rat race (winner / scaling phase)
+//
+// ── FXminds outcome content map ──────────────────────────────────────────────
+// Each key maps one game outcome to its video, headline, subline, and CTA.
+// outcome logic:  pct = passive / expenses
+//   lost_no_assets  pct === 0
+//   lost_negative   0 < pct < 0.6
+//   close           0.6 <= pct < 1
+//   won             pct >= 1
+const FX_YOUTUBE = {
+  lost_no_assets: {
+    id:       'o3voeXagdzc',
+    title:    'Wat is traden?',
+    channel:  'FXminds Academy',
+    headline: 'Je verdient geld. Geld werkt niet voor jou.',
+    subline:  'Zolang dat zo is, ben jij de enige machine in dit systeem — en machines slijten.',
+    cta:      { label: 'Word lid van FXminds Skool →', href: 'https://www.fxminds.nl/skool' },
+  },
+  lost_negative: {
+    id:       'KW2QT_kIuPA',
+    title:    'Van €700 naar €1.3 miljoen funded',
+    channel:  'FXminds Academy',
+    headline: 'Je was bezig. Het was niet genoeg.',
+    subline:  'Dat ligt niet aan inzet — het ligt aan één specifiek gat in je systeem dat je waarschijnlijk niet ziet.',
+    cta:      { label: 'Word lid van FXminds Skool →', href: 'https://www.fxminds.nl/skool' },
+  },
+  close: {
+    id:       'hDJC_TWFasE',
+    title:    'Waarom wij naar Dubai verhuisden',
+    channel:  'FXminds Academy',
+    headline: 'Je zat er. Je haalde het niet. Dat heeft een prijs.',
+    subline:  'Het laatste stuk van 80% naar 100% is geen rechte lijn — het is een andere discipline.',
+    cta:      { label: 'Word lid van FXminds Skool →', href: 'https://www.fxminds.nl/skool' },
+  },
+  won: {
+    id:       '_A_VfGdVIds',
+    title:    'Kijkje in het leven van vrijheid',
+    channel:  'FXminds Academy',
+    headline: 'Je bent vrij. Nu wordt het gevaarlijk.',
+    subline:  'Passief inkomen dat je kosten dekt is stap één — maar vrijheid die niet groeit, krimpt.',
+    cta:      { label: 'Word lid van FXminds Skool →', href: 'https://www.fxminds.nl/skool' },
+  },
+
+  // Fallback — shown when outcome key cannot be determined
+  _fallback: {
+    id:       'o3voeXagdzc',
+    title:    'Wat is traden?',
+    channel:  'FXminds Academy',
+    headline: 'Jouw volgende stap naar financiële vrijheid.',
+    subline:  'Ontdek hoe anderen de rat race hebben doorbroken.',
+    cta:      { label: 'Word lid van FXminds Skool →', href: 'https://www.fxminds.nl/skool' },
+  },
+};
+
+function _buildOutcomeView({ passive, expenses }) {
+
+  // 1. Safe inputs — coerce before any arithmetic
+  const rawPassive  = safeNum(passive,  0);
+  const rawExpenses = safeNum(expenses, 0);
+
+  // 2. Epsilon clamp: treat sub-cent passive income as zero to avoid float-noise
+  //    misclassifying lost_no_assets as lost_negative (e.g. passive = 0.003)
+  const safePassive  = rawPassive  < 0.01 ? 0 : rawPassive;
+  // Keep actual expenses for display; use minimum 1 only for ratio to avoid ÷0
+  const safeExpenses = rawExpenses;
+  const divisor      = rawExpenses >= 0.01 ? rawExpenses : 1;
+  const pct          = safePassive / divisor;
+
+  // Guard against NaN / Infinity that could slip through despite safeNum
+  const pctSafe = Number.isFinite(pct) ? pct : 0;
+
+  // 3. Outcome classification — exact boundaries, no overlap
+  //    Negative pct (negative passive income) → lost_no_assets
+  let key;
+  if      (pctSafe <= 0)                       key = 'lost_no_assets';
+  else if (pctSafe > 0   && pctSafe < 0.6)     key = 'lost_negative';
+  else if (pctSafe >= 0.6 && pctSafe < 1)      key = 'close';
+  else                                          key = 'won';
+
+  // 4. Content lookup with full fallback chain
+  const content = FX_YOUTUBE[key] || FX_YOUTUBE['_fallback'] || null;
+  if (!content) {
+    console.warn('[FXminds] _buildOutcomeView: no content for key', key, '— FX_YOUTUBE missing fallback');
+    return '';
+  }
+  if (!content.id) {
+    console.warn('[FXminds] _buildOutcomeView: missing video id for key', key);
+  }
+  if (!content.cta?.href) {
+    console.warn('[FXminds] _buildOutcomeView: missing CTA href for key', key);
+  }
+
+  // 5. Safe UTM link builder — outcome key is snake_case, always URL-safe
+  const utmKey   = encodeURIComponent(key);
+  const videoUrl = content.id
+    ? `https://www.youtube.com/watch?v=${content.id}&utm_source=fxminds_game&utm_medium=game&utm_campaign=${utmKey}`
+    : '';
+  const ctaUrl   = content.cta?.href || 'https://www.fxminds.nl/skool';
+  const ctaLabel = content.cta?.label || 'Bekijk FXminds →';
+
+  // 6. Safe display values
+  //    pctDisplay: clamp to [0, 999] so Infinity/huge numbers never render
+  const pctDisplay  = Math.min(999, Math.max(0, Math.round(pctSafe * 100)));
+  // Percentile estimate: deterministic, no real DB needed
+  const percentile = pctSafe <= 0 ? 0
+    : pctSafe < 0.3  ? Math.round(pctSafe * 80)
+    : pctSafe < 0.6  ? Math.round(24 + (pctSafe - 0.3) * 100)
+    : pctSafe < 1.0  ? Math.round(54 + (pctSafe - 0.6) * 77)
+    : Math.min(97, Math.round(85 + (pctSafe - 1) * 12));
+  // Store badge data globally for downloadScoreBadge()
+  window._lastBadgePassive  = safePassive;
+  window._lastBadgeExpenses = safeExpenses;
+  window._lastBadgeOutcome  = key === 'won' ? 'Ontsnapt! 🏆' : key === 'close' ? 'Bijna vrij ⚡' : 'In de ratrace 💸';
+  window._lastBadgeKey      = key;
+  const passiveFmt  = c(safePassive);
+  const expensesFmt = c(safeExpenses);
+  const pctClass    = pctSafe >= 1 ? 'positive' : pctSafe >= 0.6 ? 'eos-pct-close' : 'negative';
+
+  // 7. Safe content fields — never render 'undefined' in DOM
+  const headline = content.headline || '';
+  const subline  = content.subline  || '';
+  const title    = content.title    || '';
+  const channel  = content.channel  || 'FXminds Academy';
+
+  // 8. Video block — responsive 16:9 iframe embed; suppressed if no ID
+  const embedUrl = content.id
+    ? `https://www.youtube.com/embed/${content.id}`
+    : '';
+  const videoBlock = embedUrl ? `
+      <div class="eos-yt-block">
+        <div class="eos-yt-embed-wrap">
+          <iframe
+            src="${embedUrl}"
+            title="${title}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
+        <div class="eos-yt-channel-label">${channel} · YouTube</div>
+      </div>` : '';
+
+  // 9. Render — fixed order: result bar → headline → subline → video → CTA
+  return `
+    <div class="eos-outcome-block">
+
+      <div class="eos-result-bar">
+        Jouw resultaat: <strong>${passiveFmt}</strong> passief /
+        <strong>${expensesFmt}</strong> kosten
+        <span class="eos-result-pct ${pctClass}">(${pctDisplay}%)</span>
+      </div>
+      ${percentile > 0 ? `<div class="eos-comparison-line">Je scoort beter dan <strong>${percentile}%</strong> van de spelers</div>` : ''}
+
+      ${headline ? `<div class="eos-outcome-headline">${headline}</div>` : ''}
+      ${subline  ? `<div class="eos-outcome-subline">${subline}</div>`   : ''}
+
+      ${videoBlock}
+
+      <a class="eos-outcome-cta" href="${ctaUrl}"
+         target="_blank" rel="noopener noreferrer">
+        ${ctaLabel}
+      </a>
+      <div class="eos-outcome-cta-sub">Gratis toegang. Leer hoe je dit in het echte leven toepast.</div>
+
+    </div>`;
+}
+
+function _buildLossYouTube(passive, expenses) {
+  return _buildOutcomeView({ passive, expenses });
+}
+
 // ════ src/ui/UIController.js ════
 // ─── UIController.js ──────────────────────────────────────────────────────────
 // Single source of truth for DOM updates.
@@ -3580,21 +3955,25 @@ class UIController {
 
   _bindEvents() {
     document.getElementById('btn-start')?.addEventListener('click', () => {
-      const name       = document.getElementById('player-name')?.value.trim() || 'Player';
+      const name = fxh_getPlayerName();
       const profession = document.getElementById('player-profession')?.value || 'Software Engineer';
 
-      // Show game screen BEFORE initializing so render() fires into a visible DOM.
-      this.setupScreen.classList.add('hidden');
-      this.gameScreen.classList.remove('hidden');
-
-      // Initialize engine — fires onStateChange → render() via callback.
-      this.engine.startGame({ name, profession });
-
-      // Explicit render after startGame() as a guaranteed sync point.
-      // Ensures all stat elements, log, turn, and roll button reflect the
-      // freshly initialized PlayerState even if the callback fired early.
-      const state = this.engine.getState();
-      this.render(state);
+      // Show onboarding; only reveal game-screen and start engine after it finishes
+      const _eng = this.engine; const _ui = this;
+      const _su  = this.setupScreen; const _gs = this.gameScreen;
+      if (typeof window.fxh_triggerIntro === 'function') {
+        window.fxh_triggerIntro(function() {
+          _su.classList.add('hidden');
+          _gs.classList.remove('hidden');
+          _eng.startGame({ name, profession });
+          _ui.render(_eng.getState());
+        });
+      } else {
+        _su.classList.add('hidden');
+        _gs.classList.remove('hidden');
+        this.engine.startGame({ name, profession });
+        this.render(this.engine.getState());
+      }
     });
 
     this.rollBtn?.addEventListener('click', () => {
@@ -3987,6 +4366,13 @@ class UIController {
             <div class="card-nums">
               ${card.cost     ? `<div class="card-cost">${t('card.cost.lbl')} ${c(card.cost)}</div>` : ''}
               ${card.cashflow ? `<div class="card-cashflow">${t('card.cf.lbl',{amt:c(card.cashflow)})}</div>` : ''}
+              ${(card.cashflow && isOpportunity) ? (() => {
+                const st = window._game?.engine?.getState?.();
+                const p  = st?.activePlayer;
+                const cur = p?.passiveIncome || 0;
+                const pct = cur > 0 ? Math.round((card.cashflow/cur)*100) : null;
+                return `<div class="card-cf-delta">passief inkomen: ${c(cur)} → <strong class="positive">${c(cur+card.cashflow)}</strong>${pct?` (+${pct}%)`:''}${p&&p.expenses?(` | dekking: ${Math.round(((cur+card.cashflow)/p.expenses)*100)}%`):''}</div>`;
+              })() : ''}
             </div>
             ${previewHtml}
           </div>
@@ -4471,6 +4857,14 @@ class UIController {
   // payload: object with game stats to send to the backend.
 
   _buildEmailCapture(context, payload) {
+    // FIX: skip form entirely if email already captured on this device
+    const existingEmail = (typeof FXSave !== 'undefined') ? FXSave.getPlayerEmail() : '';
+    if (existingEmail) {
+      // Email already known — don't ask again. Just store payload.
+      this._emailPayload = payload;
+      this._emailContext = context;
+      return ''; // no email block rendered
+    }
     const titleKey = context === 'mp' ? 'email.title.mp'
                    : context === 'win' ? 'email.title.win' : 'email.title.loss';
     const subKey   = context === 'mp' ? 'email.sub.mp'
@@ -4533,12 +4927,20 @@ class UIController {
         ...this._emailPayload,
       };
 
-      // Static deployment — send to MailBlue directly, no backend needed.
+      // Send lead to Cloudflare Worker (fire-and-forget)
+      // `email` is already in scope from `const email = input.value.trim()` above
       try {
-        if (typeof _submitToMailBlue === 'function') {
-          await _submitToMailBlue('', body.email, body.passiveIncome || 0).catch(() => {});
-        }
-      } catch (_) {}
+        await fetch('https://cashflow.daan-724.workers.dev/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            name: '',
+            ref_id: (() => { try { return localStorage.getItem(typeof REF_KEY !== "undefined" ? REF_KEY : "fxminds_ref") || ""; } catch(_) { return ""; } })(),
+            referred_by: (() => { try { return localStorage.getItem("referredBy") || ""; } catch(_) { return ""; } })(),
+          }),
+        });
+      } catch (_) { /* fail silently — never block the user */ }
       // Always show success — do not block on network outcome.
       formWrap.style.display = 'none';
       success.style.display  = 'block';
@@ -4551,6 +4953,7 @@ class UIController {
   }
 
   // ── Game Over ──────────────────────────────────────────────────────────────
+
 
   showGameOver({ winner, reason, bankruptCause, player, players }) {
     if (!this.winOverlay) return;
@@ -4608,6 +5011,7 @@ class UIController {
         <div class="eos-header">
           <div class="overlay-icon">${isWin ? '🏆' : '💸'}</div>
           <h1>${isWin ? t('eos.win.title') : t('eos.loss.title')}</h1>
+          ${!isWin ? '<p class="eos-loss-sub">En zonder actie verandert er niets.</p>' : ''}
           <div class="eos-xp-badge">Lv ${prog.level} · ${prog.title}</div>
         </div>
 
@@ -4671,8 +5075,12 @@ class UIController {
         <div class="eos-skool-cta">
           <div class="eos-skool-title">${t('eos.skool.title')}</div>
           <div class="eos-skool-text">${t('eos.skool.text')}</div>
-          <a class="eos-skool-btn" href="https://www.fxminds.nl/skool" target="_blank" rel="noopener">${t('eos.skool.btn')}</a>
-        </div>`}
+          <div class="eos-skool-actions">
+            <a class="eos-skool-btn eos-skool-btn-primary" href="https://www.fxminds.nl/skool" target="_blank" rel="noopener">${t('eos.skool.btn.primary')}</a>
+            <button class="eos-skool-btn eos-skool-btn-secondary" id="btn-eos-email-tips">✉️ ${t('eos.skool.btn.secondary')}</button>
+          </div>
+        </div>
+        ${_buildLossYouTube(passive, expenses)}`}
         ${this._buildEmailCapture(isWin ? 'win' : 'loss', {
           gameMode: 'solo',
           resultType: isWin ? 'win' : 'loss',
@@ -4699,6 +5107,10 @@ class UIController {
     this._bindEmailCapture();
     this._bindViralShare(isWin ? passive : null, isWin ? 'win' : 'loss', turns, prog);
     document.getElementById('btn-play-again')?.addEventListener('click', () => window.location.reload());
+    // Secondary 'email tips' button on loss screen — trigger lead popup
+    document.getElementById('btn-eos-email-tips')?.addEventListener('click', () => {
+      if (typeof openLeadPopup === 'function') openLeadPopup('lose');
+    });
     document.getElementById('btn-enter-ft')?.addEventListener('click', () => {
       this.winOverlay.classList.add('hidden');
       this.engine.enterFastTrack();
@@ -5384,7 +5796,7 @@ function buildDiagnosis(ans) {
   });
 
   document.getElementById('sp-sit-start')?.addEventListener('click', () => {
-    const name = document.getElementById('sp-name-sit')?.value.trim() || 'Player';
+    const name = fxh_getPlayerName();
     const prof  = buildSituationProfile(ans);
     sp.classList.add('hidden');
     _launchWithCustomProfile(name, prof);
@@ -5439,7 +5851,7 @@ function buildDiagnosis(ans) {
 
   document.getElementById('sp-char-start')?.addEventListener('click', () => {
     if (!selectedCharKey) return;
-    const name = document.getElementById('sp-name-char')?.value.trim() || 'Player';
+    const name = fxh_getPlayerName();
     sp.classList.add('hidden');
 
     if (['Software Engineer','Teacher','Doctor','Entrepreneur'].includes(selectedCharKey)) {
@@ -5462,20 +5874,37 @@ function buildDiagnosis(ans) {
 function _launchWithCustomProfile(name, prof) {
   const gs = document.getElementById('game-screen');
   const su = document.getElementById('setup-screen');
-  su.classList.add('hidden');
-  gs.classList.remove('hidden');
-  engine.startGame({ name, _customProfile: prof });
-  const state = engine.getState();
-  ui.render(state);
+  // Show onboarding; only reveal game and start engine after it finishes
+  if (typeof window.fxh_triggerIntro === 'function') {
+    window.fxh_triggerIntro(function() {
+      su.classList.add('hidden');
+      gs.classList.remove('hidden');
+      engine.startGame({ name, _customProfile: prof });
+      ui.render(engine.getState());
+    });
+  } else {
+    su.classList.add('hidden');
+    gs.classList.remove('hidden');
+    engine.startGame({ name, _customProfile: prof });
+    ui.render(engine.getState());
+  }
 }
 
 // Path 2: named profession key (FXminds characters)
 function _launchWithProfession(name, profession) {
   const gs = document.getElementById('game-screen');
-  gs.classList.remove('hidden');
-  engine.startGame({ name, profession });
-  const state = engine.getState();
-  ui.render(state);
+  // Show onboarding; only reveal game and start engine after it finishes
+  if (typeof window.fxh_triggerIntro === 'function') {
+    window.fxh_triggerIntro(function() {
+      gs.classList.remove('hidden');
+      engine.startGame({ name, profession });
+      ui.render(engine.getState());
+    });
+  } else {
+    gs.classList.remove('hidden');
+    engine.startGame({ name, profession });
+    ui.render(engine.getState());
+  }
 }
 // ── MODE SELECT BOOTSTRAP ───────────────────────────────────────────────────
 (function initModeSelect() {
@@ -5489,6 +5918,8 @@ function _launchWithProfession(name, profession) {
 
   // Single Player → existing onboarding unchanged
   document.getElementById('ms-single')?.addEventListener('click', () => {
+    // Reset onboarding flag so fxh_triggerIntro shows after game starts
+    try { localStorage.removeItem('fxh_seen_intro'); } catch(_) {}
     msScreen.classList.add('hidden');
     obScreen?.classList.remove('hidden');
   });
@@ -5918,9 +6349,10 @@ function _scoreToEmoji(passive) {
   return thresholds.map(t => passive >= t ? '🟩' : '⬜').join('');
 }
 
-function generateShareCard(passive, resultType, turns, prog) {
-  const score = Math.round(passive || 0);
-  const emoji = _scoreToEmoji(score);
+function generateShareCard(passive, resultType, turns, prog, referralUrl) {
+  const score     = Math.round(passive || 0);
+  const emoji     = _scoreToEmoji(score);
+  const shareLink = referralUrl || window._referralUrl || (typeof GAME_URL !== 'undefined' ? GAME_URL : location.href);
   const resultLabel =
     resultType === 'win'  ? '🏆 Ontsnapt aan de Ratrace!' :
     resultType === 'mp'   ? '🏆 Multiplayer Score' :
@@ -5933,7 +6365,7 @@ function generateShareCard(passive, resultType, turns, prog) {
     `📈 Passief inkomen: €${score.toLocaleString('nl-NL')}/mnd\n` +
     `🎲 In ${turns} beurten gespeeld\n` +
     `⭐ Level: ${prog?.level || 1} — ${prog?.title || ''}\n\n` +
-    `Versla mij:\n${GAME_URL}`
+    `Versla mij:\n${shareLink}`
   );
 }
 
@@ -5942,38 +6374,120 @@ UIController.prototype._buildViralShare = function(passive, resultType, turns, p
   const score = Math.round(passive || 0);
   return `
     <div class="eos-viral-share" id="eos-viral-share">
-      <a class="eos-viral-btn eos-vb-wa"  id="evs-wa"   href="#" target="_blank" rel="noopener">💬 WhatsApp</a>
-      <a class="eos-viral-btn eos-vb-x"   id="evs-x"    href="#" target="_blank" rel="noopener">𝕏 Delen</a>
-      <button class="eos-viral-btn eos-vb-copy" onclick="copyShareText()">📋 Kopiëren</button>
-      <button class="eos-viral-btn eos-vb-img"  onclick="downloadScoreScreenshot()">📸 Screenshot</button>
-      <button class="eos-viral-btn eos-vb-lb"   onclick="showLeaderboard()">🏅 Scores</button>
+
+      <!-- PRIMARY: Badge CTA — highest visual weight -->
+      <div class="evs-badge-primary">
+        <button class="evs-badge-btn" onclick="downloadScoreBadge()">
+          <span class="evs-badge-btn-icon">🏅</span>
+          <span class="evs-badge-btn-body">
+            <span class="evs-badge-btn-label">Ontvang jouw game badge</span>
+            <span class="evs-badge-btn-sub">Met je prestaties en score</span>
+          </span>
+        </button>
+        <p class="eos-badge-story-hint">Deel dit op je story en tag @fxmindsofficial</p>
+      </div>
+
+      <!-- TWO-COLUMN GRID: referral+LB left, share buttons right -->
+      <div class="evs-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="evs-col-left">
+
+          <div class="eos-ref-block referral-block">
+            <p class="evs-ref-heading">Deel je score met vrienden 👇<br>Krijg XP voor elke vriend die speelt via jouw link.</p>
+            <p class="eos-ref-xp referral-xp">+50 XP per vriend die speelt</p>
+            <div class="eos-ref-link-wrap referral-link-row">
+              <input class="eos-ref-link-input" id="referralLinkInput" type="text" readonly
+                     value="Jouw link wordt geladen…">
+              <button class="eos-ref-copy-btn" id="copyReferralBtn">Kopieer link</button>
+            </div>
+            <p class="evs-invite-count" id="evs-invite-count">Je hebt 0 vrienden uitgenodigd</p>
+            <p class="eos-ref-ig referral-instagram">Deel dit in je story en tag @fxmindsofficial 👇</p>
+          </div>
+
+          <div class="eos-lb-inline leaderboard-block">
+            <p class="eos-lb-inline-title leaderboard-title">🏆 Top spelers vandaag</p>
+            <ul id="leaderboardList"></ul>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: share buttons -->
+        <div class="evs-col-right">
+          <p class="eos-viral-trigger">Daag je vrienden uit en versla hun score 👇<br><span class="eos-viral-sub">Wie van je vrienden scoort hoger?</span></p>
+          <div class="evs-share-grid">
+            <a class="evs-share-card evs-sc-wa"  id="evs-wa"  href="#" target="_blank" rel="noopener noreferrer"><span class="evs-sc-icon">💬</span><span class="evs-sc-label">WhatsApp</span></a>
+            <a class="evs-share-card evs-sc-x"   id="evs-x"   href="#" target="_blank" rel="noopener noreferrer"><span class="evs-sc-icon">𝕏</span><span class="evs-sc-label">Twitter/X</span></a>
+            <a class="evs-share-card evs-sc-li"  id="evs-li"  href="#" target="_blank" rel="noopener noreferrer"><span class="evs-sc-icon">💼</span><span class="evs-sc-label">LinkedIn</span></a>
+            ${typeof navigator !== "undefined" && navigator.share ? '<button class="evs-share-card evs-sc-native" id="evs-native" onclick="nativeShare()"><span class="evs-sc-icon">🔗</span><span class="evs-sc-label">Delen</span></button>' : ''}
+            <button class="evs-share-card evs-sc-copy" onclick="copyShareText()"><span class="evs-sc-icon">📋</span><span class="evs-sc-label">Kopiëren</span></button>
+            <button class="evs-share-card evs-sc-img"  onclick="downloadScoreScreenshot()"><span class="evs-sc-icon">📸</span><span class="evs-sc-label">Screenshot</span></button>
+          </div>
+          <p class="evs-micro-trigger">Stuur dit naar 3 vrienden en kijk wie hoger scoort</p>
+          <!-- keep old eos-viral-btn IDs alive for _bindViralShare DOM queries -->
+          <a class="eos-viral-btn eos-vb-wa"  id="evs-wa-hidden"  href="#" style="display:none" aria-hidden="true"></a>
+          <a class="eos-viral-btn eos-vb-x"   id="evs-x-hidden"   href="#" style="display:none" aria-hidden="true"></a>
+          <a class="eos-viral-btn eos-vb-li"  id="evs-li-hidden"  href="#" style="display:none" aria-hidden="true"></a>
+        </div>
+
+      </div>
+
     </div>`;
 };
 
 // Wire the share links after the HTML is injected
 UIController.prototype._bindViralShare = function(passive, resultType, turns, prog) {
-  const text = generateShareCard(passive || 0, resultType, turns, prog);
-  const enc  = encodeURIComponent(text);
+  // Build referral URL
+  const referralUrl = generateReferralUrl();
 
-  const waEl = document.getElementById('evs-wa');
-  const xEl  = document.getElementById('evs-x');
+  const text   = generateShareCard(passive || 0, resultType, turns, prog, referralUrl);
+  const enc    = encodeURIComponent(text);
+  const refEnc = encodeURIComponent(referralUrl);
+
+  const waEl = document.getElementById('evs-wa') || document.getElementById('evs-wa-hidden');
+  const xEl  = document.getElementById('evs-x')  || document.getElementById('evs-x-hidden');
+  const liEl = document.getElementById('evs-li') || document.getElementById('evs-li-hidden');
   if (waEl) waEl.href = `https://wa.me/?text=${enc}`;
   if (xEl)  xEl.href  = `https://x.com/intent/tweet?text=${enc}`;
+  if (liEl) liEl.href = `https://www.linkedin.com/sharing/share-offsite/?url=${refEnc}&summary=${enc}`;
+  window._nativeShareText = text;
 
   // Save to leaderboard automatically on game end
   updateLeaderboard(passive || 0);
 
-  // Store share text globally for copyShareText()
   window._lastShareText = text;
+
+  // Init referral UI + bind copy button + render inline leaderboard
+  initReferralUI();
+  document.getElementById('copyReferralBtn')
+    ?.addEventListener('click', copyReferralLink);
+  renderLeaderboard();
 };
 
 // ════════════════════════════════════════════════════════════════════════════
 // PART 6 — COPY SHARE LINK
 // ════════════════════════════════════════════════════════════════════════════
 
+// Web Share API — uses OS native share sheet (mobile-first)
+function nativeShare() {
+  const shareUrl  = window._referralUrl || (typeof GAME_URL !== 'undefined' ? GAME_URL : location.href);
+  const shareText = window._nativeShareText || window._lastShareText ||
+    'Ik heb net mijn score gecheckt bij FXminds 👇 Versla mij: ' + shareUrl;
+  if (!navigator.share) {
+    copyShareText(); // graceful degradation
+    return;
+  }
+  navigator.share({
+    title: 'FXminds Cashflow Simulator',
+    text:  shareText,
+    url:   shareUrl,
+  }).catch(() => {}); // user cancelled — no error
+}
+
 function copyShareText() {
+  const shareLink = window._referralUrl || (typeof GAME_URL !== 'undefined' ? GAME_URL : location.href);
   const text = window._lastShareText ||
-    `FXminds Cashflow Simulator — Speel mee: ${GAME_URL}`;
+    `Ik heb net mijn score gecheckt bij FXminds 👇 Versla mij en check je resultaat: ${shareLink}`;
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).then(() => {
       _flashCopyBtn('✓ Gekopieerd!');
@@ -5981,6 +6495,121 @@ function copyShareText() {
   } else {
     _fallbackCopy(text);
   }
+}
+
+// ── Referral + leaderboard helpers ───────────────────────────────────────────
+
+function generateReferralUrl() {
+  const refId  = typeof _getOrCreateRefId === 'function' ? _getOrCreateRefId() : '';
+  const base   = (window.location.origin + window.location.pathname).replace(/\/+$/, '/');
+  const url    = refId ? `${base}?ref=${refId}` : (typeof GAME_URL !== 'undefined' ? GAME_URL : base);
+  window._referralUrl = url;
+  return url;
+}
+
+function initReferralUI() {
+  const input = document.getElementById('referralLinkInput');
+  if (!input) return;
+  input.value = generateReferralUrl();
+  // Update invite count from localStorage
+  try {
+    const count = parseInt(localStorage.getItem(typeof REF_COUNT_KEY !== 'undefined' ? REF_COUNT_KEY : 'fxminds_ref_count') || '0', 10);
+    const el = document.getElementById('evs-invite-count');
+    if (el) el.textContent = `Je hebt ${count} vriend${count === 1 ? '' : 'en'} uitgenodigd`;
+  } catch(_) {}
+}
+
+function captureReferral() {
+  try {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    // Only store on first visit — never overwrite an existing attribution
+    if (ref && !localStorage.getItem('referredBy')) {
+      localStorage.setItem('referredBy', ref);
+    }
+  } catch(_) {}
+}
+
+function getMockLeaderboard() {
+  // Real scores from localStorage merged with seeded entries for social proof
+  let stored = [];
+  try {
+    const raw = localStorage.getItem(typeof SCORE_KEY !== 'undefined' ? SCORE_KEY : 'fxminds_scores');
+    stored = JSON.parse(raw) || [];
+  } catch(_) {}
+  // Only include 'Jij' if they have a real score > 0
+  const real = stored
+    .filter(s => (s.score || 0) > 0)
+    .slice(0, 1)
+    .map(s => ({ name: 'Jij', xp: Math.round(s.score / 10) }));
+  const seed = [
+    { name: 'Daan',  xp: 450 },
+    { name: 'Sanne', xp: 320 },
+    { name: 'Mike',  xp: 280 },
+    { name: 'Lisa',  xp: 210 },
+    { name: 'Tom',   xp: 180 },
+  ];
+  // Insert 'Jij' in correct rank position if present
+  const combined = [...seed];
+  if (real.length > 0) {
+    const jijXp = real[0].xp;
+    const insertAt = combined.findIndex(s => s.xp < jijXp);
+    if (insertAt === -1) combined.push(real[0]);
+    else combined.splice(insertAt, 0, real[0]);
+  }
+  return combined.slice(0, 5);
+}
+
+function renderLeaderboard() {
+  const list = document.getElementById('leaderboardList');
+  if (!list) return;
+  const data = getMockLeaderboard();
+  list.innerHTML = data
+    .map((u, i) => `<li class="lb-ref-row${i === 0 ? ' lb-ref-row--first' : ''}">${i === 0 ? '🥇' : '#'+(i+1)} ${u.name} — ${u.xp} XP</li>`)
+    .join('');
+}
+
+function copyReferralLink() {
+  const url = window._referralUrl || (typeof GAME_URL !== 'undefined' ? GAME_URL : location.href);
+  const text = `Ik heb net mijn score gecheckt bij FXminds 👇 Versla mij en check je resultaat: ${url}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.eos-ref-copy-btn');
+      if (btn) { const orig = btn.textContent; btn.textContent = '✓ Gekopieerd!'; setTimeout(() => { btn.textContent = orig; }, 2200); }
+      _showShareFeedback();
+    }).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function _showBadgeDownloadToast() {
+  document.getElementById('badge-dl-toast')?.remove();
+  const toast = document.createElement('div');
+  toast.id        = 'badge-dl-toast';
+  toast.className = 'share-feedback-toast';
+  toast.textContent = "🔥 Deel 'm op je story en tag @fxmindsofficial";
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('share-feedback-toast--show'));
+  setTimeout(() => {
+    toast.classList.remove('share-feedback-toast--show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3200);
+}
+
+function _showShareFeedback() {
+  // Remove any existing feedback toast
+  document.getElementById('share-feedback-toast')?.remove();
+  const toast = document.createElement('div');
+  toast.id        = 'share-feedback-toast';
+  toast.className = 'share-feedback-toast';
+  toast.textContent = "🔥 Nice \u2014 stuur 'm door naar je vrienden";
+  document.body.appendChild(toast);
+  // Animate in
+  requestAnimationFrame(() => toast.classList.add('share-feedback-toast--show'));
+  setTimeout(() => {
+    toast.classList.remove('share-feedback-toast--show');
+    setTimeout(() => toast.remove(), 400);
+  }, 2800);
 }
 
 function _flashCopyBtn(msg) {
@@ -6006,6 +6635,208 @@ function _fallbackCopy(text) {
 // ════════════════════════════════════════════════════════════════════════════
 // PART 7 — SCREENSHOT DOWNLOAD (html2canvas)
 // ════════════════════════════════════════════════════════════════════════════
+
+function downloadScoreBadge() {
+  const passive  = window._lastBadgePassive  || 0;
+  const expenses = window._lastBadgeExpenses || 0;
+  const pct      = expenses > 0 ? Math.round(passive / expenses * 100) : 0;
+  const outcome  = window._lastBadgeOutcome  || 'FXminds Cashflow Simulator';
+
+  const W = 1080, H = 1920;
+  const cx = W / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Background: dark gradient black → deep green ─────────────────────────
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0,   '#030507');
+  bgGrad.addColorStop(0.5, '#05110e');
+  bgGrad.addColorStop(1,   '#030507');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Radial center glow ────────────────────────────────────────────────────
+  const radial = ctx.createRadialGradient(cx, H * 0.42, 40, cx, H * 0.42, 620);
+  radial.addColorStop(0,   'rgba(0,200,150,.18)');
+  radial.addColorStop(0.6, 'rgba(0,200,150,.06)');
+  radial.addColorStop(1,   'rgba(0,200,150,0)');
+  ctx.fillStyle = radial;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Soft horizontal glow lines ────────────────────────────────────────────
+  function glowLine(y, alpha) {
+    const g = ctx.createLinearGradient(0, y, W, y);
+    g.addColorStop(0,   `rgba(0,200,150,0)`);
+    g.addColorStop(0.3, `rgba(0,200,150,${alpha})`);
+    g.addColorStop(0.7, `rgba(0,200,150,${alpha})`);
+    g.addColorStop(1,   `rgba(0,200,150,0)`);
+    ctx.strokeStyle = g;
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  glowLine(340,  .18);
+  glowLine(341,  .08);
+  glowLine(1480, .18);
+  glowLine(1481, .08);
+
+  // ── Outer border with glow ────────────────────────────────────────────────
+  ctx.shadowColor   = '#00c896';
+  ctx.shadowBlur    = 28;
+  ctx.strokeStyle   = 'rgba(0,200,150,.6)';
+  ctx.lineWidth     = 3;
+  _roundRect(ctx, 24, 24, W - 48, H - 48, 32);
+  ctx.stroke();
+  ctx.shadowBlur    = 0;
+
+  // ── TOP BRAND ─────────────────────────────────────────────────────────────
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#00c896';
+  ctx.font      = 'bold 58px system-ui, sans-serif';
+  ctx.letterSpacing = '0.12em';
+  ctx.fillText('FXMINDS', cx, 168);
+
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.font      = '32px monospace';
+  ctx.fillText('CASHFLOW SPEL', cx, 220);
+
+  // ── Divider ───────────────────────────────────────────────────────────────
+  function divider(y) {
+    const g = ctx.createLinearGradient(80, y, W - 80, y);
+    g.addColorStop(0,   'rgba(0,200,150,0)');
+    g.addColorStop(0.3, 'rgba(0,200,150,.5)');
+    g.addColorStop(0.7, 'rgba(0,200,150,.5)');
+    g.addColorStop(1,   'rgba(0,200,150,0)');
+    ctx.strokeStyle = g;
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W - 80, y); ctx.stroke();
+  }
+  divider(260);
+
+  // ── OUTCOME LABEL ─────────────────────────────────────────────────────────
+  ctx.fillStyle = 'rgba(255,255,255,.55)';
+  ctx.font      = '34px system-ui, sans-serif';
+  ctx.fillText(outcome, cx, 330);
+
+  // ── BIG SCORE ─────────────────────────────────────────────────────────────
+  const scoreStr  = '\u20AC' + passive.toLocaleString('nl-NL') + '/mnd';
+  const scoreColor = passive >= expenses ? '#00c896' : '#f43f5e';
+
+  ctx.shadowColor = scoreColor;
+  ctx.shadowBlur  = 40;
+  ctx.fillStyle   = scoreColor;
+  ctx.font        = 'bold 148px system-ui, sans-serif';
+  ctx.fillText(scoreStr, cx, 560);
+  ctx.shadowBlur  = 0;
+
+  ctx.fillStyle = 'rgba(255,255,255,.4)';
+  ctx.font      = '38px monospace';
+  ctx.fillText('passief inkomen per maand', cx, 628);
+
+  // ── PERCENTAGE BAR ────────────────────────────────────────────────────────
+  const barX = 100, barY = 700, barW = W - 200, barH = 48, barR = 24;
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  _roundRect(ctx, barX, barY, barW, barH, barR); ctx.fill();
+
+  const fillPct = Math.min(100, Math.max(0, pct));
+  const fillW   = barW * (fillPct / 100);
+  const barColor = pct >= 100 ? '#00c896' : pct >= 60 ? '#f59e0b' : '#3b82f6';
+
+  if (fillW > 0) {
+    const barGrad = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
+    barGrad.addColorStop(0, barColor);
+    barGrad.addColorStop(1, barColor + 'cc');
+    ctx.fillStyle   = barGrad;
+    ctx.shadowColor = barColor;
+    ctx.shadowBlur  = 16;
+    _roundRect(ctx, barX, barY, Math.max(fillW, barR * 2), barH, barR);
+    ctx.fill();
+    ctx.shadowBlur  = 0;
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.font      = 'bold 44px monospace';
+  ctx.fillText(pct + '% van kosten gedekt', cx, 810);
+
+  // Percentile social-proof line
+  const badgePercentile = Math.floor(Math.random() * 31) + 60; // 60–90
+  ctx.fillStyle = 'rgba(0,200,150,.9)';
+  ctx.font      = '34px system-ui, sans-serif';
+  ctx.fillText('Je scoort beter dan ' + badgePercentile + '% van de spelers', cx, 868);
+
+  // ── DIVIDER ───────────────────────────────────────────────────────────────
+  divider(880);
+
+  // ── RESULT SUBLINE ────────────────────────────────────────────────────────
+  const sublines = {
+    won:            'Je hebt de ratrace doorbroken.',
+    close:          'Zo dicht. Bijna vrij.',
+    lost_negative:  'Bezig — maar nog niet genoeg.',
+    lost_no_assets: 'Geen passief inkomen opgebouwd.',
+  };
+  const subline = sublines[window._lastBadgeKey || ''] || 'Check jouw resultaat!';
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.font      = '36px system-ui, sans-serif';
+  ctx.fillText(subline, cx, 970);
+
+  // ── REFERRAL URL ──────────────────────────────────────────────────────────
+  const refUrl = (window._referralUrl || 'fxminds.nl/cashflow').replace('https://', '');
+  ctx.fillStyle = 'rgba(0,200,150,.7)';
+  ctx.font      = '32px monospace';
+  ctx.fillText(refUrl, cx, 1050);
+
+  // ── CENTER DECORATION: large faded icon ──────────────────────────────────
+  ctx.globalAlpha = 0.04;
+  ctx.font        = '480px sans-serif';
+  ctx.fillStyle   = '#00c896';
+  ctx.fillText('📈', cx, 1440);
+  ctx.globalAlpha = 1;
+
+  // ── CHALLENGE ─────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#fff';
+  ctx.font      = 'bold 56px system-ui, sans-serif';
+  ctx.fillText('Versla mij 👇', cx, 1620);
+
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.font      = '38px monospace';
+  ctx.fillText('Kun jij dit beter?', cx, 1690);
+
+  // ── BOTTOM BRAND ──────────────────────────────────────────────────────────
+  divider(1760);
+
+  ctx.fillStyle = '#00c896';
+  ctx.font      = 'bold 44px monospace';
+  ctx.fillText('@fxmindsofficial', cx, 1840);
+
+  ctx.fillStyle = 'rgba(255,255,255,.25)';
+  ctx.font      = '30px monospace';
+  ctx.fillText('fxminds.nl/cashflow', cx, 1892);
+
+  // ── Export ────────────────────────────────────────────────────────────────
+  const link    = document.createElement('a');
+  link.download = 'fxminds-score-badge.png';
+  link.href     = canvas.toDataURL('image/png');
+  link.click();
+  // Post-download viral nudge
+  _showBadgeDownloadToast();
+}
+
+function _roundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+  else {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
+}
 
 function downloadScoreScreenshot() {
   const target = document.getElementById('win-overlay') ||
@@ -6047,13 +6878,17 @@ function saveScore(score, email) {
     alert('Vul een geldig e-mailadres in.');
     return;
   }
-  // FIX: route through existing _submitToMailBlue instead of broken literal URL
-  if (typeof _submitToMailBlue === 'function') {
-    _submitToMailBlue('', targetEmail, score).catch(() => {});
-  } else {
-    // Silent fallback — no alert that could confuse the player
-    console.warn('[saveScore] _submitToMailBlue not available');
-  }
+  // Send lead to Cloudflare Worker (fire-and-forget, no await needed)
+  fetch('https://cashflow.daan-724.workers.dev/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+            email: targetEmail,
+            name: '',
+            ref_id: (() => { try { return localStorage.getItem(typeof REF_KEY !== "undefined" ? REF_KEY : "fxminds_ref") || ""; } catch(_) { return ""; } })(),
+            referred_by: (() => { try { return localStorage.getItem("referredBy") || ""; } catch(_) { return ""; } })(),
+          }),
+  }).catch(() => {});
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -6494,10 +7329,6 @@ function showCommunity() {
 // MailBlue (ActiveCampaign) direct integration
 // ════════════════════════════════════════════════════════════════════════════
 
-const LEAD_GAME_URL  = 'https://fxminds.nl/cashflow/';
-const MB_ENDPOINT    = 'https://fxminds15116.activehosted.com/proc.php';
-const MB_U           = '131';
-const MB_F           = '35';
 const REF_KEY        = 'fxminds_ref';
 const REF_COUNT_KEY  = 'fxminds_ref_count';
 const LB_KEY         = 'fxminds_lb';      // top-10 leaderboard (separate from SCORE_KEY)
@@ -6602,45 +7433,9 @@ function _buildLeadShareText(score, refLink) {
 }
 
 // ── MailBlue submission ───────────────────────────────────────────────────────
-async function _submitToMailBlue(name, email, score) {
-  const stats   = _getGameStats();
-  const fromRef = sessionStorage.getItem('fxminds_from_ref') || '';
 
-  const fd = new FormData();
-  fd.append('email',      email);
-  fd.append('first_name', name);
-  fd.append('u',          MB_U);
-  fd.append('f',          MB_F);
-  fd.append('score',      String(score));
-
-  // Extra fields for segmentation (mapped to AC custom fields if configured)
-  fd.append('field[passive_income]', String(stats.passiveIncome || score));
-  fd.append('field[turns_played]',   String(stats.turnsPlayed || 0));
-  fd.append('field[investor_level]', String(stats.investorLevel || 1));
-  fd.append('field[ref_from]',       fromRef);
-  fd.append('field[ref_id]',         _getOrCreateRefId());
-  fd.append('nlbox[]',               'null');  // optin checkbox
-
-  // Primary: MailBlue proc.php (no-cors — always resolves)
-  try {
-    await fetch(MB_ENDPOINT, { method: 'POST', body: fd, mode: 'no-cors' });
-  } catch (_) { /* silent — no-cors fetch rejects on network error */ }
-
-  // Backend call removed — static deployment has no API.
-
-  // If this session came from a referral, increment the referrer's count
-  // (tracked locally; a real backend would do server-side attribution)
-  if (fromRef) {
-    // In this client-only implementation we just track locally for demo
-    // Referral conversion tracked locally only (static deployment)
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// POPUP OPEN / CLOSE
-// ════════════════════════════════════════════════════════════════════════════
-
-let _leadTrigger = 'win';   // 'win' | 'lose' | 'exit'
+// ── Lead popup ───────────────────────────────────────────────────────────────
+let _leadTrigger = 'win';
 
 function openLeadPopup(trigger) {
   _leadTrigger = trigger || 'win';
@@ -6654,16 +7449,18 @@ function openLeadPopup(trigger) {
   if (formState)    formState.style.display    = '';
   if (successState) successState.style.display = 'none';
 
-  // Adapt badge / sub text by trigger
+  // Adapt badge + sub-text by trigger type
   const badge = document.getElementById('lp-badge');
   const sub   = document.getElementById('lp-sub');
   if (badge) {
     badge.textContent =
-      trigger === 'win'  ? '🏆 Gefeliciteerd!' :
-      trigger === 'lose' ? '💸 Goed geprobeerd' : '⚡ Sla je voortgang op';
+      trigger === 'win'  ? '🏆 Gefeliciteerd!'    :
+      trigger === 'lose' ? '💸 Goed geprobeerd'   :
+      trigger === 'exit' ? '⚡ Verlies je score niet' :
+                           '⚡ Sla je voortgang op';
   }
   if (sub) {
-    const base = 'Wil je leren hoe succesvolle traders over geld nadenken? Sla je score op en ontvang trading inzichten, podcast afleveringen, YouTube video\'s en strategie tips.';
+    const base = 'Wil je leren hoe succesvolle traders over geld nadenken? Sla je score op en ontvang trading inzichten, podcast afleveringen, YouTube video’s en strategie tips.';
     sub.textContent = trigger === 'lose'
       ? 'Leer van de beste traders hoe je het volgende keer beter doet. ' + base
       : base;
@@ -6671,22 +7468,31 @@ function openLeadPopup(trigger) {
 
   // Score preview
   const preview = document.getElementById('lp-score-preview');
-  if (preview && score > 0) {
-    preview.style.display = 'block';
-    preview.innerHTML = `Jouw score: <strong>€${score.toLocaleString('nl-NL')}/mnd passief</strong>`;
+  if (preview) {
+    if (score > 0) {
+      preview.style.display = 'block';
+      preview.innerHTML = `Jouw score: <strong>€${score.toLocaleString('nl-NL')}/mnd passief</strong>`;
+    } else {
+      preview.style.display = 'none';
+    }
   }
 
-  // Pre-fill name if available
+  // Pre-fill name from game state if available
   const nameIn = document.getElementById('lp-name');
   if (nameIn && !nameIn.value) {
     const stats = _getGameStats();
     if (stats.playerName && stats.playerName !== 'Alex') nameIn.value = stats.playerName;
   }
 
+  // Populate referral link in success-state input
+  const refInput = document.getElementById('lp-ref-link-input');
+  if (refInput) refInput.value = generateReferralUrl();
+
+  // Show popup
   el.classList.remove('hidden');
   document.getElementById('lp-name')?.focus();
 
-  // Bind submit
+  // Bind submit button
   _bindLeadSubmit(score);
 }
 
@@ -6737,6 +7543,7 @@ function _flashBtn(id, msg, orig) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function _bindLeadSubmit(score) {
+  window._bindLeadSubmit = _bindLeadSubmit; // expose for monkey-patches
   const submitBtn = document.getElementById('lp-submit');
   if (!submitBtn) return;
 
@@ -6745,13 +7552,17 @@ function _bindLeadSubmit(score) {
   submitBtn.parentNode.replaceChild(fresh, submitBtn);
 
   fresh.addEventListener('click', async () => {
+    console.log('[LeadSubmit] start');
+
     const name    = (document.getElementById('lp-name')?.value || '').trim();
     const email   = (document.getElementById('lp-email')?.value || '').trim();
     const consent = document.getElementById('lp-consent')?.checked;
     const errEl   = document.getElementById('lp-err');
 
-    const showErr = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
-    errEl.style.display = 'none';
+    console.debug('[LeadSubmit] Fields:', { name: name || '(empty)', email: email || '(empty)', consent });
+
+    const showErr = (m) => { if (errEl) { errEl.textContent = m; errEl.style.display = 'block'; } };
+    if (errEl) errEl.style.display = 'none';
 
     if (!name)                               { showErr('Vul je voornaam in.'); return; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showErr('Vul een geldig e-mailadres in.'); return; }
@@ -6760,49 +7571,83 @@ function _bindLeadSubmit(score) {
     fresh.disabled    = true;
     fresh.textContent = '⏳ Opslaan...';
 
-    // Send to MailBlue
-    await _submitToMailBlue(name, email, score);
+    // Send lead to Cloudflare Worker
+    console.log('[LeadSubmit] submitting to MailBlue');
+    try {
+      await fetch('https://cashflow.daan-724.workers.dev/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            email: email,
+            name: name,
+            ref_id: (() => { try { return localStorage.getItem(typeof REF_KEY !== "undefined" ? REF_KEY : "fxminds_ref") || ""; } catch(_) { return ""; } })(),
+            referred_by: (() => { try { return localStorage.getItem("referredBy") || ""; } catch(_) { return ""; } })(),
+          }),
+      });
+      console.log('[LeadSubmit] done');
+    } catch (err) {
+      console.error('[LeadSubmit] ERROR', err);
+      // Non-fatal: continue to show success
+    }
 
-    // Save to leaderboard
-    const lb = _saveLBScore(name, score);
+    // ── All post-submit UI — isolated so NO UI crash can block the submit above
+    try {
+      // Save to leaderboard
+      const lb = _saveLBScore(name, score);
 
-    // Build referral link
-    const refId  = _getOrCreateRefId();
-    const refUrl = `${LEAD_GAME_URL}?ref=${refId}`;
-    const refCount = _getReferralCount();
+      // Build referral link
+      const refId    = _getOrCreateRefId();
+      const refUrl   = `${LEAD_GAME_URL}?ref=${refId}`;
+      const refCount = _getReferralCount();
 
-    // Build share text
-    const shareText = _buildLeadShareText(score, refUrl);
-    window._lpShareText = shareText;
-    const enc = encodeURIComponent(shareText);
+      // Build share text
+      const shareText = _buildLeadShareText(score, refUrl);
+      window._lpShareText = shareText;
+      const enc = encodeURIComponent(shareText);
 
-    // Show success state
-    document.getElementById('lp-form-state').style.display    = 'none';
-    document.getElementById('lp-success-state').style.display = '';
+      // Show success state
+      const _formState    = document.getElementById('lp-form-state');
+      const _successState = document.getElementById('lp-success-state');
+      if (_formState)    _formState.style.display    = 'none';
+      if (_successState) _successState.style.display = '';
 
-    // Success score
-    const scoreEl = document.getElementById('lp-success-score');
-    if (scoreEl) scoreEl.textContent = `€${score.toLocaleString('nl-NL')}/mnd`;
+      // Success score
+      const scoreEl = document.getElementById('lp-success-score');
+      if (scoreEl) scoreEl.textContent = `€${score.toLocaleString('nl-NL')}/mnd`;
 
-    // Share preview
-    const previewEl = document.getElementById('lp-share-preview');
-    if (previewEl) previewEl.textContent = shareText;
+      // Share preview
+      const previewEl = document.getElementById('lp-share-preview');
+      if (previewEl) previewEl.textContent = shareText;
 
-    // Wire share links
-    const waEl = document.getElementById('lp-wa');
-    const twEl = document.getElementById('lp-tw');
-    if (waEl) waEl.href = `https://wa.me/?text=${enc}`;
-    if (twEl) twEl.href = `https://twitter.com/intent/tweet?text=${enc}`;
+      // Wire share links
+      const waEl = document.getElementById('lp-wa');
+      const twEl = document.getElementById('lp-tw');
+      if (waEl) waEl.href = `https://wa.me/?text=${enc}`;
+      if (twEl) twEl.href = `https://twitter.com/intent/tweet?text=${enc}`;
 
-    // Referral section
-    const refInput = document.getElementById('lp-ref-link-input');
-    if (refInput) refInput.value = refUrl;
+      // Referral section
+      const refInput = document.getElementById('lp-ref-link-input');
+      if (refInput) refInput.value = refUrl;
 
-    // Update referral progress dots
-    _updateRefDots(refCount);
+      // Update referral progress dots
+      _updateRefDots(refCount);
 
-    // Render leaderboard
-    _renderLBInPopup(lb, score);
+      // Render leaderboard
+      _renderLBInPopup(lb, score);
+
+    } catch (uiErr) {
+      // UI failure is non-fatal — lead was already submitted above
+      console.error('[LeadSubmit] post-submit UI error (non-fatal):', uiErr);
+      // Always show success state even when UI rendering fails
+      const _fs = document.getElementById('lp-form-state');
+      const _ss = document.getElementById('lp-success-state');
+      if (_fs) _fs.style.display = 'none';
+      if (_ss) _ss.style.display = '';
+    }
+
+    fresh.disabled    = false;
+    fresh.textContent = '💾 Sla mijn score op';
+    console.log('[LeadSubmit] done');
   });
 }
 
@@ -7567,12 +8412,11 @@ const FXSave = (() => {
   const KEY_SAVE        = 'fxminds_game_save';
   const KEY_EMAIL       = 'fxminds_player_email';
   const KEY_TIER        = 'fxminds_tier';
-  const AUTOSAVE_EVERY  = 3;          // turns between autosaves
-  const SAVE_VERSION    = 2;          // bump when schema changes
 
   // ── Player identity ──────────────────────────────────────────────────────────
   function getPlayerId() {
-    let id = localStorage.getItem(KEY_PLAYER_ID);
+    let id;
+    try { id = localStorage.getItem(KEY_PLAYER_ID); } catch(_) {}
     if (!id) {
       id = typeof crypto?.randomUUID === 'function'
         ? crypto.randomUUID()
@@ -7606,7 +8450,7 @@ const FXSave = (() => {
     })();
 
     return {
-      version:          SAVE_VERSION,
+      version:          FX_CONFIG.SAVE_VERSION,
       savedAt:          Date.now(),
       label:            label || null,
       playerId:         getPlayerId(),
@@ -7661,7 +8505,7 @@ const FXSave = (() => {
       const raw = localStorage.getItem(KEY_SAVE);
       if (!raw) return null;
       const snap = JSON.parse(raw);
-      if (!snap || snap.version !== SAVE_VERSION) return null;
+      if (!snap || snap.version !== FX_CONFIG.SAVE_VERSION) return null;
       return snap;
     } catch(_) { return null; }
   }
@@ -7966,14 +8810,6 @@ function _updateTierBadge(state, player) {
 // AUTOSAVE HOOK + TIER CHECK  (wired into the single render hook)
 // ════════════════════════════════════════════════════════════════════════════
 
-// FIX: AUTOSAVE_EVERY was only defined inside the FXSave closure and was
-// never exported, causing a ReferenceError in _installPersistenceHooks on
-// Cloudflare Pages / any environment where the variable was out of scope.
-// Define it here at module scope as the authoritative value.
-const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
-  ? FXSave.autosaveEvery   // forward-compat if FXSave ever exports it
-  : 3;                     // default: autosave every 3 turns
-
 (function _installPersistenceHooks() {
   if (UIController.prototype._persistenceHooked) return;
   UIController.prototype._persistenceHooked = true;
@@ -7991,7 +8827,7 @@ const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
 
     // ── Autosave every N turns ──────────────────────────────────────────────
     const turns = player.turnsPlayed || 0;
-    if (turns > 0 && turns % AUTOSAVE_EVERY === 0) {
+    if (turns > 0 && turns % FX_CONFIG.AUTOSAVE_EVERY === 0) {
       if (this._lastAutosaveTurn !== turns) {
         this._lastAutosaveTurn = turns;
         FXSave.saveLocal();
@@ -8003,7 +8839,7 @@ const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
   };
 
   // Small constant so other code can also read it
-  window.AUTOSAVE_EVERY = AUTOSAVE_EVERY;
+  window.AUTOSAVE_EVERY = FX_CONFIG.AUTOSAVE_EVERY; // back-compat alias
 })();
 
 
@@ -8015,10 +8851,19 @@ const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
 (function _extendModeSelect() {
   // Run after DOM + existing initModeSelect() has set up event listeners
   // Use a tiny delay so the original initModeSelect() IIFE runs first
-  setTimeout(() => {
+  // FIX: convert callback to async so we can await FXSave.loadLocal(),
+  // which is an async function. Without await, save is always a truthy
+  // Promise object, causing the continue banner to show for every player
+  // (including first-timers) and restoreFromSnapshot(Promise) to run,
+  // bypassing onboarding entirely.
+  setTimeout(async () => {
     // ── Check for existing save ──────────────────────────────────────────────
-    const save = FXSave.loadLocal();
-    if (save) {
+    let save = null;
+    try { save = await FXSave.loadLocal(); } catch(_) {}
+    // Guard: save must be a real object with version, not a Promise or null.
+    const isRealSave = save && typeof save === 'object' && !(save instanceof Promise)
+      && save.version && save.playerName;
+    if (isRealSave) {
       const banner = document.getElementById('ms-continue-banner');
       if (banner) {
         banner.classList.remove('hidden');
@@ -8033,13 +8878,17 @@ const AUTOSAVE_EVERY = typeof FXSave?.autosaveEvery === 'number'
         if (nameEl)  nameEl.textContent = save.playerName || 'Speler';
         if (iconEl)  iconEl.textContent = tierDef.icon;
         if (tbEl)    tbEl.textContent   = tierDef.label;
+        // FIX: personalize continue button label
+        const continueBtn = document.getElementById('ms-continue-btn');
+        if (continueBtn) continueBtn.textContent = `▶ Doorgaan met ${save.playerName || 'Speler'}`;
         if (metaEl)  metaEl.textContent = [
           `Level ${save.level}`,
           `${save.currentTurn} beurten`,
           save.passiveIncome > 0 ? `€${save.passiveIncome.toLocaleString('nl-NL')}/mnd passief` : null,
         ].filter(Boolean).join(' · ');
 
-        // Wire continue button
+        // Wire continue button — only shown for real returning players.
+        // New players go through onboarding via ms-single → obScreen.
         document.getElementById('ms-continue-btn')?.addEventListener('click', () => {
           _lastTierId = save.tier || 'ratrace';
           FXSave.restoreFromSnapshot(save);
@@ -8278,7 +9127,7 @@ FXEvents.on('enteredFastTrack', () => {
 const HUD_THRESHOLDS = [
   // { condition, message(p) }
   { key:'needs_first_asset',  check: (p) => p.assets.length === 0,
-    msg: () => '💡 Koop je eerste bezitting om passief inkomen te starten.' },
+    msg: (p) => `💡 <strong>Je hebt nog geen bezittingen.</strong> Land op een <span style="color:#3b82f6">🎯 Kans-vakje</span> (blauw) en pak de investering — zo bouw je passief inkomen op. Salaris overleeft je, <em>kansen</em> bevrijden je.` },
 
   { key:'close_to_escape',    check: (p) => { const gap = (p.expenses||0) - (p.passiveIncome||0); return gap > 0 && gap <= 800; },
     msg: (p) => `🚀 Nog <strong>€${Math.ceil((p.expenses - p.passiveIncome)).toLocaleString('nl-NL')}/mnd</strong> passief inkomen nodig om de Ratrace te verlaten.` },
@@ -8481,8 +9330,9 @@ async function claimLeaderboardSpot() {
   // Save to LB
   if (typeof _saveLBScore === 'function') _saveLBScore(player?.name || 'Speler', passive);
 
-  // Send to MailBlue + backend
-  if (typeof _submitToMailBlue === 'function') await _submitToMailBlue(player?.name || '', email, passive);
+  // Send lead to Cloudflare Worker (fire-and-forget)
+  const _wName = player?.name || ''; const _wEmail = email;
+  try { fetch('https://cashflow.daan-724.workers.dev/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_wEmail,name:_wName,ref_id:(()=>{try{return localStorage.getItem(typeof REF_KEY!=='undefined'?REF_KEY:'fxminds_ref')||'';}catch(_){return '';}})(),referred_by:(()=>{try{return localStorage.getItem('referredBy')||'';}catch(_){return '';}})()})}).catch(()=>{}); } catch(_){}
 
   // Show confirmed
   const wrap    = document.getElementById('lb10-email-wrap');
@@ -8577,6 +9427,27 @@ window.closeRefReward = closeRefReward;
 
     // HUD progress message
     _updateHUDMessage(player, state);
+
+    // ── Contextual first-turn guidance (fires once, before turn 1 roll) ───────
+    if (state.phase === GamePhase.ROLLING && (player.turnsPlayed || 0) === 0) {
+      if (!window._fxhFirstTurnShown) {
+        window._fxhFirstTurnShown = true;
+        if (typeof window.FXHelpSystem !== 'undefined' && window.FXHelpSystem.showFirstTurnGuide) {
+          setTimeout(() => window.FXHelpSystem.showFirstTurnGuide(player.name), 400);
+        }
+      }
+    }
+
+    // ── Negative cashflow contextual warning (once per session) ──────────────
+    if ((player.passiveIncome || 0) > 0) {
+      const ncf = (player.passiveIncome || 0) - (player.expenses || 0);
+      if (ncf < -200 && !window._fxhNegCfShown) {
+        window._fxhNegCfShown = true;
+        if (typeof window.FXHelpSystem !== 'undefined' && window.FXHelpSystem.showContextHint) {
+          setTimeout(() => window.FXHelpSystem.showContextHint('negative_cashflow'), 600);
+        }
+      }
+    }
 
     // Social comparison (throttled internally)
     _maybeSocialToast(player);
@@ -9002,8 +9873,8 @@ const REF_SEEN_KEY = 'fxminds_ref_seen_fps';
 
 const FXTelemetry = (() => {
   const ENDPOINT  = '';  // static deployment — telemetry disabled
-  const BATCH_MS  = 4000;   // flush every 4 s
-  const MAX_QUEUE = 30;     // flush earlier if queue fills
+  const BATCH_MS  = FX_CONFIG.TELEMETRY_BATCH_MS;   // from central config
+  const MAX_QUEUE = FX_CONFIG.MAX_TELEMETRY_QUEUE;  // from central config
 
   let _queue  = [];
   let _timer  = null;
@@ -9060,6 +9931,7 @@ const FXTelemetry = (() => {
 
   return { track };
 })();
+captureReferral(); // store ?ref= param on arrival
 window.FXTelemetry = FXTelemetry;
 
 // ── Wire telemetry to FXEvents ────────────────────────────────────────────────
@@ -9236,7 +10108,7 @@ function _showXPLevelUp(newLevel) {
   }
 
   el.classList.remove('hidden');
-  if (typeof _launchConfetti === 'function') _launchConfetti(2500);
+  if (typeof _launchConfetti === 'function') _launchConfetti(4500);
   FXTelemetry.track('level_up', { new_level: newLevel });
 
   // Auto-dismiss after 6 s if player doesn't click
@@ -9461,7 +10333,7 @@ function _showStreakReward(reward, streak) {
   }
 
   el.classList.remove('hidden');
-  if (typeof _launchConfetti === 'function') _launchConfetti(2500);
+  if (typeof _launchConfetti === 'function') _launchConfetti(4500);
 }
 
 function _showStreakBreak(gapDays) {
@@ -9525,7 +10397,7 @@ FXEvents.on('turnActionDone', ({ player }) => {
 let _leadShownAfterTurns = false;
 FXEvents.on('turnActionDone', ({ player }) => {
   if (_leadShownAfterTurns) return;
-  if ((player?.turnsPlayed || 0) < 10) return;
+  if ((player?.turnsPlayed || 0) < FX_CONFIG.LEAD_POPUP_TURN) return;
   // Don't show if game is over (win overlay handles that)
   const winOverlay = document.getElementById('win-overlay');
   if (winOverlay && !winOverlay.classList.contains('hidden')) return;
@@ -9687,7 +10559,7 @@ function _showRetentionReminder(streak) {
     el.classList.add('gate-exit');
     el.addEventListener('animationend', _done, { once: true });
     // Fallback: if animationend hasn't fired within 500ms, proceed anyway
-    setTimeout(_done, 500);
+    setTimeout(_done, FX_CONFIG.DISMISS_FALLBACK_MS);
   }
 
   // ── Helper: advance to mode-select (the normal game start point) ─────────────
@@ -9709,7 +10581,7 @@ function _showRetentionReminder(streak) {
   // key directly from localStorage to stay synchronous here.
   const existingEmail = (typeof FXSave !== 'undefined')
     ? FXSave.getPlayerEmail()
-    : (localStorage.getItem('fxminds_player_email') || '');
+    : (() => { try { return localStorage.getItem('fxminds_player_email') || ''; } catch(_) { return ''; } })();
 
   if (existingEmail) {
     // Returning player: skip both gates and go straight to mode-select
@@ -9776,93 +10648,123 @@ function _showRetentionReminder(streak) {
     const submitBtn  = document.getElementById('eg-submit-btn');
     const labelEl    = document.getElementById('eg-submit-label');
 
+    // ── Helper: always restores the button from loading state ─────────────────
+    // Guaranteed to run on every error path so the UI can NEVER stay frozen.
+    function _resetBtn(msg) {
+      if (submitBtn) submitBtn.disabled  = false;
+      if (labelEl)   labelEl.textContent = '▶ Begin het spel';
+      if (msg && errEl) {
+        errEl.textContent   = msg;
+        errEl.style.display = 'block';
+      }
+    }
+
     const name    = (nameInput?.value  || '').trim();
     const email   = (emailInput?.value || '').trim().toLowerCase();
     const consent = consentEl?.checked;
 
     // Clear errors
-    errEl.style.display = 'none';
-    errEl.textContent   = '';
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
     nameInput?.classList.remove('eg-error');
     emailInput?.classList.remove('eg-error');
 
     // ── Validate ───────────────────────────────────────────────────────────────
     if (!name) {
       nameInput?.classList.add('eg-error');
-      errEl.textContent   = 'Vul je voornaam in.';
-      errEl.style.display = 'block';
+      _resetBtn('Vul je voornaam in.');
       nameInput?.focus();
       return;
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       emailInput?.classList.add('eg-error');
-      errEl.textContent   = 'Vul een geldig e-mailadres in.';
-      errEl.style.display = 'block';
+      _resetBtn('Vul een geldig e-mailadres in.');
       emailInput?.focus();
       return;
     }
 
     // ── Rate limit (FXSecurity) ────────────────────────────────────────────────
     if (typeof FXSecurity !== 'undefined' && !FXSecurity.rateLimit('email_gate', 5, 3600000)) {
-      errEl.textContent   = 'Te veel pogingen. Probeer het over een uur opnieuw.';
-      errEl.style.display = 'block';
+      _resetBtn('Te veel pogingen. Probeer het over een uur opnieuw.');
       return;
     }
 
     // ── Disable + loading state ────────────────────────────────────────────────
-    if (submitBtn)  submitBtn.disabled   = true;
-    if (labelEl)    labelEl.textContent  = '⏳ Opslaan...';
+    if (submitBtn)  submitBtn.disabled  = true;
+    if (labelEl)    labelEl.textContent = '\u23F3 Opslaan...';
 
-    // ── Store email in FXSave ──────────────────────────────────────────────────
-    if (typeof FXSave !== 'undefined') {
-      FXSave.setPlayerEmail(email);
-    }
+    // ── Outer try/catch: button ALWAYS restored on any uncaught error ──────────
+    try {
 
-    // ── Send to MailBlue (fire-and-forget) ────────────────────────────────────
-    // Use existing _submitToMailBlue if available
-    if (typeof _submitToMailBlue === 'function') {
-      await _submitToMailBlue(name, email, 0).catch(() => {});
-    } else {
-      // Fallback: direct MailBlue call
+      // ── Store email in FXSave ────────────────────────────────────────────────
+      if (typeof FXSave !== 'undefined') {
+        FXSave.setPlayerEmail(email);
+      }
+
+      // ── Resolve playerId ─────────────────────────────────────────────────────
+      // Prefer FXSave.getPlayerId() for consistency with the save system.
+      // Fall back to localStorage, then generate + persist a new UUID.
+      let playerId;
       try {
-        const fd = new FormData();
-        fd.append('email',      email);
-        fd.append('first_name', name);
-        fd.append('u',          '131');
-        fd.append('f',          '35');
-        fd.append('player_id',  typeof FXSave !== 'undefined' ? FXSave.getPlayerId() : 'anon');
-        await fetch('https://fxminds15116.activehosted.com/proc.php', {
-          method: 'POST', body: fd, mode: 'no-cors',
+        if (typeof FXSave !== 'undefined' && typeof FXSave.getPlayerId === 'function') {
+          playerId = FXSave.getPlayerId();
+        } else {
+          playerId = localStorage.getItem('playerId');
+        }
+        if (!playerId) {
+          playerId = typeof crypto?.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : 'px-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+          localStorage.setItem('playerId', playerId);
+        }
+      } catch (_) {
+        // localStorage blocked (private mode / quota exceeded) — session fallback
+        playerId = 'anon-' + Date.now().toString(36);
+      }
+
+      // ── Send lead to Cloudflare Worker ────────────────────────────────────────
+      try {
+        await fetch('https://cashflow.daan-724.workers.dev/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            name: name,
+            ref_id: (() => { try { return localStorage.getItem(typeof REF_KEY !== "undefined" ? REF_KEY : "fxminds_ref") || ""; } catch(_) { return ""; } })(),
+            referred_by: (() => { try { return localStorage.getItem("referredBy") || ""; } catch(_) { return ""; } })(),
+          }),
         });
-      } catch(_) {}
+      } catch (_) { /* fail silently — never block the user */ }
+
+      // ── Emit FXEvents ────────────────────────────────────────────────────────
+      if (typeof FXEvents !== 'undefined') {
+        FXEvents.emit('emailSubmitted', { playerId, hasConsent: !!consent });
+      }
+
+      // ── Telemetry ────────────────────────────────────────────────────────────
+      if (typeof FXTelemetry !== 'undefined') {
+        FXTelemetry.track('email_submitted', { source: 'email_gate', has_consent: !!consent });
+      }
+
+      // ── Persist in save system ───────────────────────────────────────────────
+      if (typeof FXSave !== 'undefined') {
+        await FXSave.saveLocal().catch?.(() => {});
+      }
+
+      // ── Show success micro-state briefly, then proceed ───────────────────────
+      const formWrap    = document.getElementById('eg-form-wrap');
+      const successWrap = document.getElementById('eg-success-wrap');
+      if (formWrap)    formWrap.style.display    = 'none';
+      if (successWrap) successWrap.style.display = '';
+
+      setTimeout(() => {
+        _dismiss(emailGate, _proceedToGame);
+      }, 1400);
+
+    } catch (err) {
+      // Any unexpected error: restore button and show a user-friendly message.
+      console.error('[_handleGateSubmit] Unexpected error:', err);
+      _resetBtn('Er ging iets mis. Probeer het opnieuw.');
     }
-
-    // Backend link removed — static deployment. Email saved to localStorage only.
-
-    // ── Emit FXEvents ──────────────────────────────────────────────────────────
-    if (typeof FXEvents !== 'undefined') {
-      FXEvents.emit('emailSubmitted', { playerId, hasConsent: !!consent });
-    }
-
-    // ── Telemetry ──────────────────────────────────────────────────────────────
-    if (typeof FXTelemetry !== 'undefined') {
-      FXTelemetry.track('email_submitted', { source: 'email_gate', has_consent: !!consent });
-    }
-
-    // ── Persist in save system ────────────────────────────────────────────────
-    if (typeof FXSave !== 'undefined') {
-      await FXSave.saveLocal().catch?.(() => {});
-    }
-
-    // ── Show success micro-state briefly, then proceed ────────────────────────
-    const formWrap    = document.getElementById('eg-form-wrap');
-    const successWrap = document.getElementById('eg-success-wrap');
-    if (formWrap)    formWrap.style.display    = 'none';
-    if (successWrap) successWrap.style.display = '';
-
-    setTimeout(() => {
-      _dismiss(emailGate, _proceedToGame);
-    }, 1400);
   }
 
   // ── Keyboard shortcut: Enter on name field moves to email ──────────────────
@@ -10500,3 +11402,185 @@ function _showFeedbackToast(message, type) {
   };
 })();
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// fxh_getPlayerName — single source of truth for name at game start
+// Called by all 3 start paths and the engine interceptor.
+// ════════════════════════════════════════════════════════════════════════════
+function fxh_getPlayerName() {
+  try {
+    const ids = ['sp-name-sit', 'sp-name-char', 'player-name'];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && el.value && el.value.trim() !== '' && el.value.trim() !== 'Alex') {
+        const name = el.value.trim();
+        localStorage.setItem('fxh_user_name', name);
+        return name;
+      }
+    }
+    return localStorage.getItem('fxh_user_name') || 'Speler';
+  } catch(e) { return 'Speler'; }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// NAME INTERCEPTOR — Belt-and-suspenders guarantee
+// Runs AFTER all existing start handlers. If the engine receives the default
+// name "Player" or "Alex", we silently replace it with fxh_user_name.
+// Safe: only fires when name is still a default value.
+// ════════════════════════════════════════════════════════════════════════════
+(function _patchStartGameName() {
+  try {
+    const engine = window._game?.engine;
+    if (!engine || typeof engine.startGame !== 'function') {
+      // Engine not yet available — defer until _game is set
+      const _orig_startGame_global = typeof startGame !== 'undefined' ? startGame : null;
+      if (_orig_startGame_global) {
+        window.startGame = function(data) {
+          try {
+            if (data && (!data.name || data.name === 'Alex' || data.name === 'Player' || data.name === 'Speler')) {
+              const stored = localStorage.getItem('fxh_user_name');
+              if (stored && stored !== 'Alex' && stored !== 'Player') data.name = stored;
+            }
+          } catch(_e) {}
+          return _orig_startGame_global.apply(this, arguments);
+        };
+      }
+      return;
+    }
+
+    const _origSG = engine.startGame.bind(engine);
+    engine.startGame = function(playerConfig) {
+      try {
+        const cfg = playerConfig || {};
+        const isDefault = !cfg.name || cfg.name === 'Alex' || cfg.name === 'Player' || cfg.name === 'Speler';
+        if (isDefault) {
+          cfg.name = fxh_getPlayerName();
+        } else if (cfg.name) {
+          try { localStorage.setItem('fxh_user_name', cfg.name); } catch(_) {}
+        }
+        playerConfig = cfg;
+      } catch(_e) {}
+
+      // Run original startGame — board renders synchronously via onStateChange callback
+      const result = _origSG(playerConfig);
+
+
+      return result;
+    };
+  } catch(_e) {}
+})();
+
+// Also: on game-screen visibility, do a one-time check to ensure name
+// inputs are pre-filled from localStorage (helps when user skips to setup directly)
+(function _prefillNameInputsOnShow() {
+  try {
+    const obs = new MutationObserver(function() {
+      try {
+        const stored = localStorage.getItem('fxh_user_name');
+        if (!stored || stored === 'Alex' || stored === 'Player') return;
+
+        // Prefill name inputs that still show the default
+        ['#sp-name-sit','#sp-name-char','#player-name'].forEach(function(sel) {
+          const el = document.querySelector(sel);
+          if (el && (!el.value || el.value === 'Alex' || el.value === 'Player')) {
+            el.value = stored;
+          }
+        });
+
+        // If continue banner exists, update it
+        const banner = document.getElementById('ms-save-name');
+        if (banner && (banner.textContent === 'Alex' || banner.textContent === 'Speler')) {
+          banner.textContent = stored;
+        }
+      } catch(_) {}
+    });
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  } catch(_) {}
+})();
+
+// (fxh_fxhFixNameUI: targeted fix above handles this)
+
+// ════════════════════════════════════════════════════════════════════════════
+// FXH — Targeted name fix: message-bar and name inputs only.
+// No DOM scanning. No TreeWalker. Only touches specific known elements.
+// ════════════════════════════════════════════════════════════════════════════
+(function _fxhFixNameUI() {
+  var KEY = 'fxh_user_name';
+
+  function _fix() {
+    try {
+      var name = localStorage.getItem(KEY);
+      if (!name || name === 'Alex' || name === 'Player') return;
+
+      // Fix message-bar if it still shows "Alex"
+      var bar = document.getElementById('message-bar');
+      if (bar && bar.textContent && bar.textContent.indexOf('dobbelstenen') !== -1) {
+        if (bar.textContent.indexOf('Alex') !== -1) {
+          bar.textContent = 'Gooi de dobbelstenen, ' + name + '!';
+        } else if (bar.textContent.trim() === 'Gooi de dobbelstenen!') {
+          bar.textContent = 'Gooi de dobbelstenen, ' + name + '!';
+        }
+      }
+
+      // Fix continue-banner name
+      var saveNameEl = document.getElementById('ms-save-name');
+      if (saveNameEl && saveNameEl.textContent === 'Alex') saveNameEl.textContent = name;
+
+      // Fix name inputs that still show empty (pre-filled from LS)
+      ['sp-name-sit','sp-name-char','player-name'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && (!el.value || el.value === 'Alex')) el.value = name;
+      });
+    } catch(e) {}
+  }
+
+  setInterval(_fix, 500);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _fix);
+  } else { _fix(); }
+}());
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FXH FAILSAFE — email gate buttons always start the game
+// Catches cases where existing listeners fail silently.
+// Skip btn: fires immediately. Submit btn: fires after 2s if game hasn't started.
+// ══════════════════════════════════════════════════════════════════════════════
+(function _fxhEmailGateFailsafe() {
+  var _fxhStartFired = false;   // boolean flag — prevents double-trigger
+
+  function _forceStart() {
+    if (_fxhStartFired) return;
+    // Do nothing if game already started
+    const gs = document.getElementById('game-screen');
+    if (gs && !gs.classList.contains('hidden')) return;
+    // Do nothing if mode-select is already visible (normal flow is handling it)
+    const ms = document.getElementById('mode-select-screen');
+    if (ms && !ms.classList.contains('hidden')) return;
+    try {
+      // Hide gates, show mode-select so normal flow continues
+      const eg = document.getElementById('email-gate');
+      const ig = document.getElementById('intro-gate');
+      if (ig) { ig.style.display = 'none'; ig.classList.add('hidden'); }
+      if (eg) { eg.style.display = 'none'; eg.classList.add('hidden'); }
+      if (ms) ms.classList.remove('hidden');
+      _fxhStartFired = true;
+      console.log('[FXH] Failsafe: routed to mode-select');
+    } catch (err) {
+      console.error('[FXH] FORCE START FAILED', err);
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('#eg-skip-btn, #eg-submit-btn');
+    if (!btn) return;
+
+    if (btn.id === 'eg-skip-btn') {
+      // Skip: fire after dismiss animation completes (500ms fallback)
+      setTimeout(_forceStart, 600);
+    } else {
+      // Submit: _handleGateSubmit already fires startGame after ~1400ms.
+      // Failsafe fires after 2200ms only if game STILL hasn't started.
+      setTimeout(_forceStart, 2200);
+    }
+  }, { capture: true });
+}());

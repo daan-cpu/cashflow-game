@@ -1,0 +1,227 @@
+/* fxminds-help.css — FXminds Guidance System v5
+   All selectors .fxh-* or #fxh-root — no global overrides */
+
+/* ══ INTRO MODAL ═══════════════════════════════════════════════════════════ */
+.fxh-intro {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.88);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 20px;
+}
+
+.fxh-intro-box {
+  background: #111827;
+  padding: 32px 28px 26px;
+  border-radius: 14px;
+  max-width: 440px; width: 100%;
+  color: #f9fafb;
+  box-shadow: 0 24px 60px rgba(0,0,0,.95);
+  border: 1px solid #1f2937;
+}
+
+.fxh-intro-brand {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: #00c896; margin-bottom: 14px;
+}
+
+.fxh-intro-box h2 {
+  font-size: 21px; font-weight: 800; color: #f9fafb;
+  margin: 0 0 8px; line-height: 1.3;
+}
+
+.fxh-intro-goal {
+  font-size: 14px; color: #9ca3af; margin: 0 0 18px; line-height: 1.6;
+}
+
+.fxh-intro-steps {
+  padding-left: 18px; margin: 0 0 16px; color: #d1d5db;
+  font-size: 13px; line-height: 1.8;
+}
+.fxh-intro-steps strong { color: #f9fafb; }
+
+/* ── Tile legend ── */
+.fxh-tile-legend {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 0 0 18px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid #1f2937;
+  border-radius: 10px; padding: 14px 16px;
+}
+
+.fxh-tile-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; color: #9ca3af; line-height: 1.5;
+}
+.fxh-tile-row em { font-style: normal; color: #d1d5db; }
+
+.fxh-tile-row.fxh-tile-highlight {
+  background: rgba(59,130,246,.08);
+  border: 1px solid rgba(59,130,246,.22);
+  border-radius: 7px; padding: 6px 10px; margin: 0 -10px;
+}
+
+.fxh-tile-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 3px;
+}
+
+/* ── Core insight block ── */
+.fxh-intro-insight {
+  background: rgba(0,200,150,.07);
+  border: 1px solid rgba(0,200,150,.22);
+  border-left: 3px solid #00c896;
+  border-radius: 8px; padding: 12px 14px;
+  font-size: 13px; color: #9ca3af; line-height: 1.65;
+  margin: 0 0 22px;
+}
+.fxh-intro-insight strong { color: #f9fafb; }
+
+/* ── CTA button ── */
+.fxh-intro-box #fxh-start-btn {
+  display: block; width: 100%;
+  padding: 13px 0; background: #00c896;
+  color: #000; border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s, transform .15s;
+}
+.fxh-intro-box #fxh-start-btn:hover { opacity: .88; transform: translateY(-1px); }
+
+.fxh-intro-sub {
+  margin-top: 12px; font-size: 11px; color: #4b5563; text-align: center;
+}
+.fxh-intro-sub a { color: #00c896; text-decoration: none; }
+.fxh-intro-sub a:hover { text-decoration: underline; }
+
+/* ══ ROLL BUTTON TOOLTIP ════════════════════════════════════════════════════ */
+.fxh-roll-tip {
+  position: absolute;
+  z-index: 9998;
+  background: #1e3a5f;
+  color: #93c5fd;
+  font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 6px;
+  white-space: nowrap;
+  border: 1px solid rgba(59,130,246,.35);
+  box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  pointer-events: none;
+  opacity: 0; transform: translateX(-50%) translateY(4px);
+  transition: opacity .25s, transform .25s;
+}
+.fxh-roll-tip.fxh-roll-tip-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ BANNER / CONTEXT HINTS ════════════════════════════════════════════════ */
+.fxh-banner {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  z-index: 9500; opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s;
+  max-width: calc(100vw - 32px);
+}
+.fxh-banner.fxh-banner-show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+  pointer-events: all;
+}
+.fxh-banner-inner {
+  background: #141920; border: 1px solid #3b82f6;
+  border-radius: 10px; padding: 14px 16px 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.7), 0 0 0 1px rgba(59,130,246,.1);
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 290px; font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+.fxh-banner-title { font-size: 13px; font-weight: 700; color: #dce6f5; }
+.fxh-banner-body  { font-size: 12px; color: #566a8f; line-height: 1.6; }
+.fxh-banner-close {
+  align-self: flex-end; background: transparent;
+  border: 1px solid #2a3858; border-radius: 5px;
+  padding: 4px 10px; font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #3b82f6; cursor: pointer; transition: all .15s;
+}
+.fxh-banner-close:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+/* ══ HELP BUTTON ════════════════════════════════════════════════════════════ */
+#fxh-root .fxh-help-btn {
+  position: fixed; top: 14px; right: 14px; z-index: 9700;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid #2a3858; background: #141920;
+  color: #00c896; font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,.55);
+  transition: all .15s; padding: 0; line-height: 1;
+}
+#fxh-root .fxh-help-btn:hover {
+  background: #00c896; color: #000; border-color: #00c896; transform: scale(1.08);
+}
+
+/* ══ HELP MENU ══════════════════════════════════════════════════════════════ */
+#fxh-root .fxh-menu {
+  position: fixed; top: 54px; right: 14px; z-index: 9700; width: 252px;
+  background: #141920; border: 1px solid #2a3858;
+  border-radius: 10px; padding: 10px 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.9);
+  opacity: 0; transform: translateY(-6px) scale(.97);
+  transition: opacity .16s, transform .16s; pointer-events: none;
+}
+#fxh-root .fxh-menu.fxh-on { opacity: 1; transform: none; pointer-events: all; }
+#fxh-root .fxh-menu-head {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: .12em;
+  text-transform: uppercase; color: #566a8f;
+  padding: 2px 10px 8px; border-bottom: 1px solid #1e2840; margin-bottom: 6px;
+}
+#fxh-root .fxh-menu-btn {
+  display: block; width: 100%; text-align: left; background: transparent; border: none;
+  padding: 9px 12px; border-radius: 6px; font-size: 13px; color: #dce6f5;
+  cursor: pointer; transition: background .15s; font-family: inherit;
+}
+#fxh-root .fxh-menu-btn:hover { background: rgba(255,255,255,.05); }
+#fxh-root .fxh-menu-div { height: 1px; background: #1e2840; margin: 6px 10px; }
+#fxh-root .fxh-menu-cta {
+  display: block; padding: 9px 12px; border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #00c896;
+  text-decoration: none; transition: background .15s;
+}
+#fxh-root .fxh-menu-cta:hover { background: rgba(0,200,150,.1); }
+
+/* ══ HELP MODAL ═════════════════════════════════════════════════════════════ */
+#fxh-root .fxh-modal {
+  position: fixed; inset: 0; z-index: 9950;
+  background: rgba(3,5,8,.76); display: flex; align-items: center;
+  justify-content: center; padding: 20px;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+#fxh-root .fxh-modal.fxh-on { opacity: 1; pointer-events: all; }
+#fxh-root .fxh-modal-box {
+  position: relative; width: min(490px, 100%);
+  background: #141920; border: 1px solid #2a3858;
+  border-radius: 14px; padding: 28px 26px 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.95);
+  transform: scale(.97) translateY(8px); transition: transform .2s;
+}
+#fxh-root .fxh-modal.fxh-on .fxh-modal-box { transform: none; }
+#fxh-root .fxh-modal-close {
+  position: absolute; top: 14px; right: 14px; background: transparent;
+  border: 1px solid #1e2840; color: #566a8f; border-radius: 6px;
+  padding: 4px 9px; font-size: 12px; cursor: pointer; transition: all .15s;
+}
+#fxh-root .fxh-modal-close:hover { border-color: #2a3858; color: #dce6f5; }
+#fxh-root .fxh-modal-title { font-size: 17px; font-weight: 700; color: #dce6f5; margin-bottom: 14px; }
+#fxh-root .fxh-modal-body  { font-size: 13px; color: #566a8f; line-height: 1.7; }
+#fxh-root .fxh-modal-body strong { color: #dce6f5; }
+#fxh-root .fxh-modal-body ol, #fxh-root .fxh-modal-body ul { padding-left: 18px; }
+#fxh-root .fxh-modal-body li { margin-bottom: 6px; }
+#fxh-root .fxh-modal-cta { margin-top: 16px; padding-top: 14px; border-top: 1px solid #1e2840; }
+#fxh-root .fxh-modal-cta a {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #00c896; text-decoration: none;
+}
+#fxh-root .fxh-modal-cta a:hover { text-decoration: underline; }
+
+/* ══ RESPONSIVE ════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .fxh-intro-box { padding: 24px 18px 20px; }
+  .fxh-intro-box h2 { font-size: 18px; }
+  .fxh-tile-row.fxh-tile-highlight { margin: 0 -6px; }
+  #fxh-root .fxh-menu { width: calc(100vw - 28px); }
+}

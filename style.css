@@ -415,7 +415,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
 /* ── Board Center ─────────────────────────────────────────── */
 .board-area{
   grid-area:bd;background:var(--bg);display:flex;flex-direction:column;
-  align-items:center;padding:20px 22px;overflow-y:auto;
+  align-items:center;padding:5px 22px 16px;overflow-y:auto; /* spacing: compact top */
 }
 .board-header{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:var(--dim);
   text-transform:uppercase;margin-bottom:14px;align-self:flex-start}
@@ -948,10 +948,17 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
 .le-sys{border-left-color:var(--dim);color:var(--dim);font-size:10px}
 
 /* ── Card Modal ───────────────────────────────────────────── */
-#card-modal{position:fixed;inset:0;z-index:1000}
+#card-modal{position:fixed;inset:0;z-index:1000;pointer-events:none}
 .card-overlay{
-  position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);
+  position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);
   display:flex;align-items:center;justify-content:center;padding:24px;animation:fi .18s ease;
+  pointer-events:all;
+}
+/* Card panel positioned so right-panel (stats) stays partially visible on wider screens */
+@media(min-width:900px){
+  .card-overlay{
+    padding-right:max(24px, calc(100% - 860px));
+  }
 }
 @keyframes fi{from{opacity:0}to{opacity:1}}
 .card-panel{
@@ -1109,7 +1116,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   transition:width .5s cubic-bezier(.34,1.56,.64,1)}
 
 /* ── End-of-Screen Analysis ───────────────────────────────── */
-.eos-panel{max-width:620px;max-height:90vh;overflow-y:auto;padding:32px 28px}
+.eos-panel{max-width:640px;max-height:90vh;overflow-y:auto;padding:28px 28px}
 .eos-header{text-align:center;margin-bottom:20px}
 .eos-xp-badge{display:inline-block;font-family:var(--mono);font-size:11px;
   background:var(--goldd);color:var(--gold);border:1px solid rgba(245,158,11,.25);
@@ -1243,7 +1250,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   .overlay-panel{padding:32px 22px}
   .card-overlay{padding:12px}
   #statement-panel{right:8px;width:calc(100vw - 16px);max-width:none}
-  .board-area{padding:16px 10px}
+  .board-area{padding:4px 10px 12px} /* spacing: mobile compact */
 }
 /* ── Email capture block ─────────────────────────────────────────────────── */
 .eos-email{margin:16px 0 4px;background:rgba(0,200,150,.05);border:1px solid rgba(0,200,150,.18);
@@ -1482,28 +1489,136 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
 .share-img:hover { background:rgba(245,158,11,.2); }
 
 /* ── Share button inside EOS overlay (win/loss/MP screen) ─────────────────── */
-.eos-viral-share {
-  margin:12px 0 4px;
-  display:flex;flex-wrap:wrap;gap:7px;
+/* ── Hidden legacy share buttons (IDs used by _bindViralShare) ──────────── */
+.eos-viral-btn { display:none; }
+
+/* ── Outer wrapper ───────────────────────────────────────────────────────── */
+.eos-viral-share { margin:16px 0 4px; }
+
+/* ── Badge primary CTA ───────────────────────────────────────────────────── */
+.evs-badge-primary { margin-bottom:16px; }
+.evs-badge-btn {
+  width:100%;display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#00c896 0%,#059669 50%,#0ea5e9 100%);
+  border:none;border-radius:12px;padding:16px 20px;cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease;text-align:left;
+  box-shadow:0 0 24px rgba(0,200,150,.3),0 2px 8px rgba(0,0,0,.4);
+  position:relative;overflow:hidden;
 }
-.eos-viral-btn {
-  flex:1;min-width:100px;
-  display:flex;align-items:center;justify-content:center;gap:5px;
-  padding:9px 12px;border-radius:var(--r);font-family:var(--mono);
-  font-size:10px;font-weight:700;letter-spacing:.04em;cursor:pointer;
-  transition:all var(--ease);text-decoration:none;border:none;
-  white-space:nowrap;
+.evs-badge-btn::before {
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,transparent 60%);
+  pointer-events:none;
 }
-.eos-vb-wa   { background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);color:#25d366; }
-.eos-vb-wa:hover { background:rgba(37,211,102,.22); }
-.eos-vb-x    { background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--text); }
-.eos-vb-x:hover { background:rgba(255,255,255,.1); }
-.eos-vb-copy { background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.22);color:var(--blue); }
-.eos-vb-copy:hover { background:rgba(59,130,246,.18); }
-.eos-vb-img  { background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);color:var(--gold); }
-.eos-vb-img:hover { background:rgba(245,158,11,.18); }
-.eos-vb-lb   { background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.22);color:#a78bfa; }
-.eos-vb-lb:hover { background:rgba(139,92,246,.18); }
+.evs-badge-btn:hover {
+  transform:scale(1.02);
+  box-shadow:0 0 36px rgba(0,200,150,.45),0 4px 16px rgba(0,0,0,.5);
+}
+.evs-badge-btn:active { transform:scale(.98);transition-duration:.06s; }
+.evs-badge-btn-icon { font-size:26px;line-height:1;flex-shrink:0; }
+.evs-badge-btn-body { display:flex;flex-direction:column;gap:2px; }
+.evs-badge-btn-label { font-family:var(--mono);font-size:13px;font-weight:800;color:#000;letter-spacing:.02em; }
+.evs-badge-btn-sub   { font-family:var(--mono);font-size:10px;color:rgba(0,0,0,.6); }
+
+/* ── Two-column layout ───────────────────────────────────────────────────── */
+.evs-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  align-items:start;
+}
+.evs-col-left,.evs-col-right { display:flex;flex-direction:column;gap:12px; }
+
+/* ── Share cards grid ────────────────────────────────────────────────────── */
+.evs-share-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.evs-share-card {
+  display:flex;align-items:center;gap:9px;
+  padding:11px 14px;border-radius:10px;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  cursor:pointer;text-decoration:none;border:1px solid transparent;
+  transition:transform .12s ease,box-shadow .14s ease,background .12s ease,border-color .12s ease;
+  white-space:nowrap;position:relative;overflow:hidden;
+}
+.evs-share-card:hover  { transform:scale(1.03); }
+.evs-share-card:active { transform:scale(.96);transition-duration:.06s; }
+.evs-sc-icon  { font-size:16px;line-height:1;flex-shrink:0; }
+.evs-sc-label { letter-spacing:.04em; }
+
+/* ── WhatsApp ─────────────────────────────────────────────────────────────── */
+.evs-sc-wa {
+  background:linear-gradient(135deg,rgba(37,211,102,.15) 0%,rgba(37,211,102,.08) 100%);
+  border-color:rgba(37,211,102,.32);color:#4ade80;
+}
+.evs-sc-wa:hover {
+  background:linear-gradient(135deg,rgba(37,211,102,.26) 0%,rgba(37,211,102,.16) 100%);
+  border-color:rgba(37,211,102,.55);
+  box-shadow:0 0 14px rgba(37,211,102,.22),0 0 0 1px rgba(37,211,102,.4);
+}
+
+/* ── Twitter / X ──────────────────────────────────────────────────────────── */
+.evs-sc-x {
+  background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.04) 100%);
+  border-color:rgba(255,255,255,.16);color:#e5e7eb;
+}
+.evs-sc-x:hover {
+  background:linear-gradient(135deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.08) 100%);
+  border-color:rgba(255,255,255,.3);
+  box-shadow:0 0 14px rgba(255,255,255,.08),0 0 0 1px rgba(255,255,255,.22);
+}
+
+/* ── LinkedIn ─────────────────────────────────────────────────────────────── */
+.evs-sc-li {
+  background:linear-gradient(135deg,rgba(10,102,194,.22) 0%,rgba(10,102,194,.12) 100%);
+  border-color:rgba(10,102,194,.45);color:#93c5fd;
+}
+.evs-sc-li:hover {
+  background:linear-gradient(135deg,rgba(10,102,194,.34) 0%,rgba(10,102,194,.22) 100%);
+  border-color:rgba(10,102,194,.65);
+  box-shadow:0 0 14px rgba(10,102,194,.28),0 0 0 1px rgba(10,102,194,.5);
+}
+
+/* ── Native share ─────────────────────────────────────────────────────────── */
+.evs-sc-native {
+  background:linear-gradient(135deg,rgba(0,200,150,.1) 0%,rgba(0,200,150,.05) 100%);
+  border-color:rgba(0,200,150,.25);color:#34d399;
+}
+.evs-sc-native:hover {
+  background:linear-gradient(135deg,rgba(0,200,150,.18) 0%,rgba(0,200,150,.1) 100%);
+  border-color:rgba(0,200,150,.45);
+  box-shadow:0 0 14px rgba(0,200,150,.18),0 0 0 1px rgba(0,200,150,.35);
+}
+
+/* ── Copy ─────────────────────────────────────────────────────────────────── */
+.evs-sc-copy {
+  background:linear-gradient(135deg,rgba(59,130,246,.1) 0%,rgba(59,130,246,.05) 100%);
+  border-color:rgba(59,130,246,.28);color:#93c5fd;
+}
+.evs-sc-copy:hover {
+  background:linear-gradient(135deg,rgba(59,130,246,.18) 0%,rgba(59,130,246,.1) 100%);
+  border-color:rgba(59,130,246,.48);
+  box-shadow:0 0 14px rgba(59,130,246,.2),0 0 0 1px rgba(59,130,246,.38);
+}
+
+/* ── Screenshot ───────────────────────────────────────────────────────────── */
+.evs-sc-img {
+  background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(245,158,11,.05) 100%);
+  border-color:rgba(245,158,11,.28);color:#fcd34d;
+}
+.evs-sc-img:hover {
+  background:linear-gradient(135deg,rgba(245,158,11,.18) 0%,rgba(245,158,11,.1) 100%);
+  border-color:rgba(245,158,11,.48);
+  box-shadow:0 0 14px rgba(245,158,11,.18),0 0 0 1px rgba(245,158,11,.38);
+}
+
+/* ── Divider between ref block and share cards ───────────────────────────── */
+.evs-col-right { border-left:1px solid var(--border);padding-left:14px; }
+
+/* ── ref heading inside grid ─────────────────────────────────────────────── */
+.evs-ref-heading { font-size:11px;font-weight:600;color:var(--text);line-height:1.5;margin:0 0 4px; }
 
 /* ── Mobile win/loss overlay scrollable ──────────────────────────────────── */
 @media(max-width:767px) {
@@ -1515,6 +1630,12 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   }
   .eos-grid { grid-template-columns:1fr 1fr; gap:6px; }
   .eos-viral-btn { font-size:9px; padding:8px 8px; min-width:80px; }
+  /* Two-column → single column on small mobile */
+  .evs-grid { grid-template-columns:1fr; }
+  .evs-col-right { border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:12px; }
+  .evs-share-grid { grid-template-columns:1fr 1fr; }
+  .evs-badge-btn { padding:12px 14px; }
+  .evs-badge-btn-label { font-size:12px; }
   .share-actions { grid-template-columns:1fr 1fr; }
   .card-overlay { padding:10px; align-items:flex-end; }
   .card-panel   { border-radius:var(--rl) var(--rl) 0 0; max-height:90vh; overflow-y:auto; }
@@ -2734,3 +2855,153 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   50%     { opacity:.8;transform:scale(.98); }
 }
 
+/* ── EOS conversion CTA ──────────────────────────────────────────────────── */
+.eos-skool-actions{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.eos-skool-btn-primary{background:#00c896;color:#000;font-weight:700;border:none;
+  border-radius:var(--r);padding:12px 20px;cursor:pointer;text-decoration:none;
+  display:block;text-align:center;transition:all .15s}
+.eos-skool-btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.eos-skool-btn-secondary{background:transparent;color:var(--text);font-weight:600;
+  border:1px solid var(--border);border-radius:var(--r);padding:10px 20px;
+  cursor:pointer;font-family:var(--mono);font-size:11px;transition:all .15s}
+.eos-skool-btn-secondary:hover{border-color:var(--text);background:var(--bg3)}
+
+/* ── EOS YouTube card ────────────────────────────────────────────────────── */
+.eos-yt-block{margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.eos-yt-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.eos-yt-embed-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;
+  border-radius:var(--r);background:var(--bg3)}
+.eos-yt-embed-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;
+  border:0;border-radius:var(--r)}
+.eos-yt-channel-label{font-family:var(--mono);font-size:10px;color:var(--muted);
+  margin-top:6px;text-align:right}
+@media(max-width:480px){
+  .eos-skool-actions{gap:6px}
+}
+
+/* ── EOS loss subtitle ───────────────────────────────────────────────────── */
+.eos-loss-sub{margin:4px 0 8px;font-size:12px;color:var(--muted);
+  font-family:var(--mono);letter-spacing:.02em}
+
+/* ── LinkedIn share button ───────────────────────────────────────────────── */
+/* merged into evs-share-card rules */
+
+/* ── Web Share API (native) button ──────────────────────────────────────── */
+/* merged into evs-share-card rules */
+
+/* ── Expense reduction — stats panel green ↓ indicator ──────────────────── */
+.stat-exp-reduced{color:var(--green2);font-weight:700}
+.exp-reduction-badge{display:inline-block;margin-left:4px;font-family:var(--mono);
+  font-size:9px;color:var(--green2);background:rgba(0,200,150,.1);
+  border-radius:3px;padding:1px 4px}
+
+/* ── Outcome content block ───────────────────────────────────────────────── */
+.eos-outcome-block{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+
+/* Result bar */
+.eos-result-bar{font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+  padding:8px 12px;line-height:1.5}
+.eos-result-bar strong{color:var(--text)}
+.eos-result-pct{margin-left:6px;font-weight:700}
+.eos-pct-close{color:#f59e0b}
+
+/* Headline + subline */
+.eos-outcome-headline{font-family:var(--mono);font-size:17px;font-weight:800;
+  line-height:1.3;color:var(--text)}
+.eos-outcome-subline{font-size:12px;color:var(--muted);line-height:1.65;
+  margin-top:-6px}
+
+/* CTA button */
+.eos-outcome-cta{display:block;background:#00c896;color:#000;font-weight:700;
+  font-family:var(--mono);font-size:12px;text-align:center;text-decoration:none;
+  border-radius:var(--r);padding:13px 20px;transition:all .15s;margin-top:2px}
+.eos-outcome-cta:hover{opacity:.88;transform:translateY(-1px)}
+
+@media(max-width:480px){
+  .eos-outcome-headline{font-size:15px}
+  .eos-outcome-cta{padding:12px 16px}
+}
+
+/* ── Referral block ──────────────────────────────────────────────────────── */
+.eos-ref-block{background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:12px;
+  display:flex;flex-direction:column;gap:8px}
+.eos-ref-msg{font-size:12px;font-weight:600;color:var(--text);line-height:1.5}
+.eos-ref-xp{font-family:var(--mono);font-size:10px;font-weight:700;
+  color:#00c896;letter-spacing:.05em}
+.eos-ref-link-wrap{display:flex;gap:6px;align-items:center}
+.eos-ref-link-input{flex:1;background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;padding:7px 10px;font-family:var(--mono);font-size:10px;
+  color:var(--muted);min-width:0;cursor:text}
+.eos-ref-copy-btn{flex-shrink:0;background:#00c896;color:#000;border:none;
+  border-radius:4px;padding:7px 12px;font-family:var(--mono);font-size:10px;
+  font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.eos-ref-copy-btn:hover{opacity:.85}
+.eos-ref-ig{font-family:var(--mono);font-size:10px;color:var(--muted)}
+@media(max-width:480px){
+  .eos-ref-link-wrap{flex-direction:column;align-items:stretch}
+  .eos-ref-copy-btn{width:100%;text-align:center}
+}
+
+/* ── Inline leaderboard block ────────────────────────────────────────────── */
+.eos-lb-inline{background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 16px;margin-bottom:12px}
+.eos-lb-inline-title{font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--text);margin:0 0 8px}
+#leaderboardList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.lb-ref-row{font-family:var(--mono);font-size:11px;color:var(--muted);
+  padding:4px 0;border-bottom:1px solid var(--border)}
+.lb-ref-row:last-child{border-bottom:none}
+
+/* ── CTA subtext ─────────────────────────────────────────────────────────── */
+.eos-outcome-cta-sub{font-family:var(--mono);font-size:10px;color:var(--muted);
+  text-align:center;margin-top:6px}
+
+/* ── Viral trigger line ──────────────────────────────────────────────────── */
+.eos-viral-trigger{font-family:var(--mono);font-size:12px;font-weight:700;
+  color:var(--text);text-align:center;margin:8px 0 10px;letter-spacing:.02em}
+
+/* ── Score badge button ──────────────────────────────────────────────────── */
+/* merged into evs-share-card rules */
+
+/* ── Viral trigger sub-line ──────────────────────────────────────────────── */
+.eos-viral-sub{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── Share feedback toast ────────────────────────────────────────────────── */
+.share-feedback-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#00c896;color:#000;font-family:var(--mono);font-size:13px;font-weight:700;
+  padding:12px 22px;border-radius:40px;z-index:9999;opacity:0;
+  transition:opacity .25s ease,transform .25s ease;white-space:nowrap;pointer-events:none}
+.share-feedback-toast--show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:480px){.share-feedback-toast{font-size:12px;padding:10px 16px;bottom:16px}}
+
+/* ── Comparison percentile line ─────────────────────────────────────────── */
+.eos-comparison-line{font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+  padding:6px 12px;text-align:center;margin-top:6px}
+.eos-comparison-line strong{color:#00c896}
+
+/* ── Badge story hint ───────────────────────────────────────────────────── */
+.eos-badge-story-hint{font-family:var(--mono);font-size:10px;color:var(--muted);
+  text-align:center;margin:4px 0 6px}
+
+/* ── Leaderboard #1 highlight ───────────────────────────────────────────── */
+.lb-ref-row--first{color:var(--text)!important;font-weight:700}
+
+/* ── Invite count ────────────────────────────────────────────────────────── */
+.evs-invite-count{font-family:var(--mono);font-size:10px;color:var(--muted);margin:4px 0 0}
+
+/* ── Micro share trigger ─────────────────────────────────────────────────── */
+.evs-micro-trigger{font-family:var(--mono);font-size:10px;color:var(--muted);
+  text-align:center;margin:8px 0 0;line-height:1.5}
+
+
+/* ── Cashflow delta op kans-kaart (webinar feedback) ── */
+.card-cf-delta{
+  margin-top:8px;padding:8px 10px;
+  background:rgba(0,200,150,.07);border:1px solid rgba(0,200,150,.18);border-radius:6px;
+  font-size:12px;color:var(--muted);line-height:1.5;
+}
+.card-cf-delta strong.positive{color:var(--green);font-weight:700;}

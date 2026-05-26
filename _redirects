@@ -1,0 +1,5 @@
+# Cloudflare Pages _redirects
+# SPA fallback: only catch routes that are NOT static assets.
+# Static files (.css .js .html .png etc.) are served directly by Cloudflare
+# before this rule is even checked, so this only catches clean URL routes.
+/game    /index.html   200
