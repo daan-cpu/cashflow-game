@@ -954,13 +954,22 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   display:flex;align-items:center;justify-content:center;padding:24px;animation:fi .18s ease;
   pointer-events:all;
 }
-/* On wider screens: shift card left so the right stats panel stays visible */
+/* Card panel: nooit breder dan 520px zodat het bord zichtbaar blijft */
+.card-panel{ max-width:520px; width:100%; }
+
+/* Op brede schermen: panel links uitlijnen, stats-panel rechts blijft zichtbaar */
 @media(min-width:1000px){
-  .card-overlay{ justify-content:flex-start; padding-left:max(48px,8%); }
-  .card-panel   { max-width:480px; }
+  .card-overlay{
+    align-items:center;
+    justify-content:flex-start;
+    padding-left:max(40px, 5%);
+    padding-right:0;
+  }
+  .card-panel{ max-width:460px; }
 }
 @media(min-width:1280px){
-  .card-overlay{ padding-left:max(80px,12%); }
+  .card-overlay{ padding-left:max(60px, 8%); }
+  .card-panel{ max-width:480px; }
 }
 @keyframes fi{from{opacity:0}to{opacity:1}}
 .card-panel{
@@ -3072,3 +3081,92 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--body);font-si
   100% { box-shadow: 0 0 0 0 rgba(0,200,150,0); }
 }
 .first-asset-glow { animation: fxh-asset-pulse 1s ease 2; }
+
+/* â”€â”€ Card finance snapshot â€” persoonlijke cijfers bovenin elke kaart â”€â”€ */
+.card-snap {
+  padding: 10px 16px 8px;
+  background: rgba(255,255,255,.03);
+  border-bottom: 1px solid var(--border);
+}
+.card-snap-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.card-snap-item {
+  flex: 1 1 auto;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.card-snap-lbl {
+  font-size: 9px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.card-snap-item strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+/* Vrijheidsbalk */
+.card-snap-bar-wrap {
+  height: 4px;
+  background: rgba(255,255,255,.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.card-snap-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+/* â”€â”€ Coach advies widget op kaart â”€â”€ */
+.card-coach {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(59,130,246,.07);
+  border: 1px solid rgba(59,130,246,.2);
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+}
+.card-coach-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.card-coach-avatar {
+  font-size: 18px;
+  line-height: 1;
+}
+.card-coach-name {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+  font-family: var(--mono);
+}
+.card-coach-role {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  letter-spacing: .04em;
+}
+.card-coach-advice {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.6;
+}
+/* Daan = blauw, Stan = groen, Luc = oranje, Enzo = paars */
+.card-coach[data-coach="stan"]  { border-left-color: #10b981; background: rgba(16,185,129,.07); border-color: rgba(16,185,129,.2); }
+.card-coach[data-coach="luc"]   { border-left-color: #f59e0b; background: rgba(245,158,11,.07); border-color: rgba(245,158,11,.2); }
+.card-coach[data-coach="enzo"]  { border-left-color: #8b5cf6; background: rgba(139,92,246,.07); border-color: rgba(139,92,246,.2); }
