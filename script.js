@@ -1,3 +1,4 @@
+// FXminds Cashflow Simulator — build 20260526-102626 — v2.5
 /*
  * CashFlow Academy — FXminds
  * Main game script

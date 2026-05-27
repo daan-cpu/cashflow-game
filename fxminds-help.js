@@ -139,6 +139,16 @@
       }
     ];
 
+    // safeDone — fires onDone exactly once, no matter how many exit paths trigger
+    var _done = false;
+    function safeDone() {
+      if (_done) return;
+      _done = true;
+      if (typeof onDone === 'function') { onDone(); }
+    }
+    // Safety timeout: if user somehow gets stuck, start game after 15s
+    var _safeTimer = setTimeout(safeDone, 15000);
+
     var modal = document.createElement('div');
     modal.className = 'fxh-intro';
 
@@ -173,10 +183,10 @@
           '</div>' +
         '</div>';
 
-      modal.querySelector('.fxh-ob-skip').onclick = function() { modal.remove(); if (typeof onDone === 'function') { onDone(); } };
+      modal.querySelector('.fxh-ob-skip').onclick = function() { clearTimeout(_safeTimer); modal.remove(); safeDone(); };
       modal.querySelector('.fxh-ob-next').onclick = function() {
         if (step < STEPS.length - 1) { step++; render(); }
-        else { modal.remove(); if (typeof onDone === 'function') { onDone(); } }
+        else { clearTimeout(_safeTimer); modal.remove(); safeDone(); }
       };
       var backBtn = modal.querySelector('.fxh-ob-back');
       if (backBtn) backBtn.onclick = function() { if (step > 0) { step--; render(); } };
